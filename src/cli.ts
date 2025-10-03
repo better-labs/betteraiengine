@@ -1,4 +1,20 @@
 #!/usr/bin/env node
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load .env.local before importing other modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(__dirname, '../.env.local');
+const result = config({ path: envPath });
+
+if (result.error) {
+  console.error('Failed to load .env.local:', result.error.message);
+  console.error('Looking for file at:', envPath);
+  process.exit(1);
+}
+
 import { Command } from 'commander';
 import { logger } from './utils/logger.js';
 import { fetchTopMarkets, fetchMarketBySlug } from './services/polymarket.js';
@@ -138,6 +154,10 @@ program
         'Failed to run prediction'
       );
       console.error('\nError:', error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && error.stack) {
+        console.error('\nStack trace:');
+        console.error(error.stack);
+      }
       process.exit(1);
     }
   });

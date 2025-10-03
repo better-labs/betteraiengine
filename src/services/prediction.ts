@@ -5,6 +5,7 @@ import { db } from '../db/index.js';
 import { predictionJobs, predictions, markets } from '../db/schema.js';
 import type { PolymarketMarket } from './polymarket.js';
 import { eq } from 'drizzle-orm';
+import { env } from '../config/env.js';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
@@ -125,11 +126,15 @@ export async function runPrediction(
 
     // Initialize OpenRouter via LangChain
     const model = new ChatOpenAI({
-      modelName: 'anthropic/claude-3.5-sonnet', // Using Claude 3.5 Sonnet via OpenRouter
+      model: 'anthropic/claude-3.5-sonnet', // Using Claude 3.5 Sonnet via OpenRouter
       temperature: 0.7,
-      openAIApiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: env.OPENROUTER_API_KEY,
       configuration: {
         baseURL: OPENROUTER_BASE_URL,
+        defaultHeaders: {
+          'HTTP-Referer': 'https://github.com/betteraiengine',
+          'X-Title': 'BetterAI Engine',
+        },
       },
     });
 
