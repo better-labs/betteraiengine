@@ -32,7 +32,7 @@ export interface PolymarketMarket {
  * Fetch event by slug from Polymarket Gamma API
  */
 export async function fetchEventBySlug(slug: string): Promise<PolymarketEvent> {
-  const url = `${GAMMA_API_BASE}/events/${slug}`;
+  const url = `${GAMMA_API_BASE}/events?slug=${slug}`;
   logger.info({ slug, url }, 'Fetching event from Polymarket');
 
   const response = await fetch(url);
@@ -42,16 +42,24 @@ export async function fetchEventBySlug(slug: string): Promise<PolymarketEvent> {
   }
 
   const data = await response.json();
-  logger.info({ slug, eventId: data.id }, 'Successfully fetched event');
 
-  return data as PolymarketEvent;
+  // API returns an array, get the first result
+  const event = Array.isArray(data) ? data[0] : data;
+
+  if (!event) {
+    throw new Error(`Event with slug ${slug} not found`);
+  }
+
+  logger.info({ slug, eventId: event.id }, 'Successfully fetched event');
+
+  return event as PolymarketEvent;
 }
 
 /**
  * Fetch market by slug from Polymarket Gamma API
  */
 export async function fetchMarketBySlug(slug: string): Promise<PolymarketMarket> {
-  const url = `${GAMMA_API_BASE}/markets/${slug}`;
+  const url = `${GAMMA_API_BASE}/markets?slug=${slug}`;
   logger.info({ slug, url }, 'Fetching market from Polymarket');
 
   const response = await fetch(url);
@@ -61,9 +69,17 @@ export async function fetchMarketBySlug(slug: string): Promise<PolymarketMarket>
   }
 
   const data = await response.json();
-  logger.info({ slug, marketId: data.id }, 'Successfully fetched market');
 
-  return data as PolymarketMarket;
+  // API returns an array, get the first result
+  const market = Array.isArray(data) ? data[0] : data;
+
+  if (!market) {
+    throw new Error(`Market with slug ${slug} not found`);
+  }
+
+  logger.info({ slug, marketId: market.id }, 'Successfully fetched market');
+
+  return market as PolymarketMarket;
 }
 
 /**
