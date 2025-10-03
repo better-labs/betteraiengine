@@ -1,5 +1,7 @@
 # design-betteraiengine.md
 
+Last updated: 10/3/25
+
 ## Overview
 BetterAI-v2 is a **headless backend service** (no frontend) for generating AI-enhanced predictions on Polymarket markets. It pulls data from the Polymarket Gamma API, persists both structured entities (events, markets, predictions) and raw API payloads, then uses LangChain + OpenRouter to produce structured prediction outputs.
 
@@ -27,7 +29,6 @@ The system is operated via CLI commands and scheduled batch jobs (daily syncs).
 ## High-Level System Components
 - **CLI Layer**
   - `predict:market --url or --slug`
-  - `predict:event  --url or --slug`
 
 - **Database (Postgres + Drizzle)**
 
@@ -52,16 +53,16 @@ The system is operated via CLI commands and scheduled batch jobs (daily syncs).
 ## Phased Implementation Plan
 
 ### Phase 1 – Scaffold setup
-- Scaffold repo (TS/Node, Drizzle, Commander.js CLI)
+- Scaffold repo (TS/Node, Drizzle, Commander.js CLI, pnpm)
 - Create DB schema for Events, Markets, Predictions
 - Implement Gamma API fetcher + upsert
 - Add `RawEvent` and `RawMarket` tables (pure JSONB with generated id/slug columns)
-- CLI: `ingest:topMarkets`
+- CLI: `pnpm dev ingest:topMarkets`
 
 ### Phase 2 – Prediction Pipeline (MVP)
 - Add `PredictionJob` tables tables
 - Integrate LangChain + OpenRouter
-- CLI: `predict:market <id>`
+- CLI: `predict:market --url or --slug`
 - Persist final prediction JSON + raw model responses
 
 ### Future Features – Batch + Scheduling
