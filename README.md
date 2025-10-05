@@ -155,3 +155,15 @@ pnpm dev run:experiment -e 002 -u <market-url>
 ✅ **Feature flags** - Enable/disable experiments without code changes
 ✅ **Metadata-rich** - Version tracking, tags, descriptions, and more
 
+
+
+
+## Todos
+
+exp002
+Adding AI Delta calculation for the market after the prediction
+Adding basic data lookup for the market from Exa.ai using datasets
+
+exp003
+Add custom user supplied context
+
