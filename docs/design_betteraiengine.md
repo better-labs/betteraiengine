@@ -28,7 +28,8 @@ The system is operated via CLI commands and scheduled batch jobs (daily syncs).
 
 ## High-Level System Components
 - **CLI Layer**
-  - `predict:market --url or --slug`
+  - `run:experiment -e <experiment-id> --url or --slug`
+  - `list:experiments`
 
 - **Database (Postgres + Drizzle)**
 
@@ -60,10 +61,11 @@ The system is operated via CLI commands and scheduled batch jobs (daily syncs).
 - CLI: `pnpm dev ingest:topMarkets`
 
 ### Phase 2 – Prediction Pipeline (MVP)
-- Add `PredictionJob` tables tables
+- Add `PredictionJob` and `Predictions` tables
 - Integrate LangChain + OpenRouter
-- CLI: `predict:market --url or --slug`
+- CLI: `run:experiment -e 001 --url or --slug`
 - Persist final prediction JSON + raw model responses
+- Configuration-based experiment system for pluggable models
 
 ### Future Features – Batch + Scheduling
 - Daily cron job: fetch top N markets by 24h volume/liquidity

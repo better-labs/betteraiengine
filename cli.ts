@@ -17,11 +17,8 @@ if (result.error) {
 
 import { Command } from 'commander';
 import { logger } from './utils/logger.js';
-import { fetchTopMarkets, fetchMarketBySlug } from './services/polymarket.js';
-import { ingestMarket } from './services/ingestion.js';
-import { runPrediction } from './services/prediction.js';
 import { runExperiment } from './services/experiment-runner.js';
-import { getAllExperimentMetadata, getEnabledExperimentIds } from './experiments/config.js';
+import { getAllExperimentMetadata } from './experiments/config.js';
 
 const program = new Command();
 
@@ -110,72 +107,6 @@ program
 //       process.exit(1);
 //     }
 //   });
-
-/**
- * Command: predict:market
- * Fetch a market, ingest it, and run a prediction job
- */
-program
-  .command('predict:market')
-  .description('Run a prediction on a Polymarket market')
-  .option('-u, --url <url>', 'Polymarket market URL')
-  .option('-s, --slug <slug>', 'Market slug')
-  .action(async (options) => {
-    const slug = getMarketSlug(options);
-    logger.info({ slug }, 'Starting predict:market command');
-
-    try {
-      // Step 1: Fetch market from Polymarket API
-      logger.info({ slug }, 'Fetching market from Polymarket API');
-      const market = await fetchMarketBySlug(slug);
-
-      // Step 2: Ingest market (save raw + structured data)
-      logger.info({ marketId: market.id }, 'Ingesting market to database');
-      await ingestMarket(market);
-
-      // Step 3: Run prediction
-      logger.info({ marketId: market.id }, 'Running prediction job');
-      const prediction = await runPrediction(market.id);
-
-      // Output results
-      logger.info(
-        {
-          marketId: market.id,
-          question: market.question,
-          outcome: prediction.prediction.outcome,
-          confidence: prediction.prediction.confidence,
-          probability: prediction.prediction.probability,
-        },
-        'Prediction completed successfully'
-      );
-
-      console.log('\n=== PREDICTION RESULTS ===');
-      console.log(`Market: ${prediction.question}`);
-      console.log(`Outcome: ${prediction.prediction.outcome}`);
-      console.log(`Confidence: ${prediction.prediction.confidence}%`);
-      console.log(`Probability (YES): ${prediction.prediction.probability}%`);
-      console.log(`\nReasoning:\n${prediction.prediction.reasoning}`);
-      console.log(`\nKey Factors:`);
-      prediction.keyFactors.forEach((factor, idx) => {
-        console.log(`  ${idx + 1}. ${factor}`);
-      });
-      console.log(`\nData Quality: ${prediction.dataQuality}`);
-      console.log('========================\n');
-
-      process.exit(0);
-    } catch (error) {
-      logger.error(
-        { error: error instanceof Error ? error.message : String(error), slug },
-        'Failed to run prediction'
-      );
-      console.error('\nError:', error instanceof Error ? error.message : String(error));
-      if (error instanceof Error && error.stack) {
-        console.error('\nStack trace:');
-        console.error(error.stack);
-      }
-      process.exit(1);
-    }
-  });
 
 /**
  * Command: list:experiments

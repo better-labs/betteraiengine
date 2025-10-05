@@ -2,6 +2,7 @@ import { logger } from '../../utils/logger.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { PolymarketMarket } from '../../services/polymarket.js';
+import { savePrediction, saveFailedPrediction } from '../../services/prediction-storage.js';
 
 export interface ExperimentResult {
   success: boolean;
@@ -86,11 +87,55 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     const systemPrompt = buildSystemPrompt();
     const contextPrompt = buildContextPrompt(market);
 
-    // Invoke the model
-    const response = await model.invoke([
+    // Prepare messages
+    const messages = [
       new SystemMessage(systemPrompt),
       new HumanMessage(contextPrompt),
-    ]);
+    ];
+
+    // Invoke the model
+    const response = await model.invoke(messages);
+
+    // Parse the response - try to extract JSON if available
+    let predictionData;
+    try {
+      let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+
+      // Remove markdown code blocks if present
+      const jsonMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (jsonMatch) {
+        content = jsonMatch[1].trim();
+      }
+
+      // Try to parse as JSON
+      predictionData = JSON.parse(content);
+    } catch {
+      // If not JSON, store as text response
+      predictionData = {
+        marketId: market.id,
+        question: market.question,
+        response: response.content,
+        format: 'text',
+      };
+    }
+
+    // Save prediction to database
+    await savePrediction({
+      marketId: market.id,
+      prediction: predictionData,
+      rawRequest: {
+        messages: messages.map(msg => ({
+          role: msg._getType(),
+          content: msg.content,
+        })),
+        model: 'openai/gpt-4o',
+        temperature: 0.7,
+      },
+      rawResponse: response,
+      model: 'openai/gpt-4o',
+      promptTokens: response.response_metadata?.tokenUsage?.promptTokens,
+      completionTokens: response.response_metadata?.tokenUsage?.completionTokens,
+    });
 
     return {
       success: true,
@@ -98,17 +143,23 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
         marketId: market.id,
         response: response.content,
         model: 'openai/gpt-4o',
+        prediction: predictionData,
       },
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
     logger.error(
-      { experimentId: '001', marketId: market.id, error: error instanceof Error ? error.message : String(error) },
+      { experimentId: '001', marketId: market.id, error: errorMessage },
       'Experiment 001 failed'
     );
 
+    // Save failed prediction job
+    await saveFailedPrediction(market.id, errorMessage);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
     };
   }
 }
