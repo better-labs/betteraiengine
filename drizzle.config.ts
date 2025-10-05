@@ -22,7 +22,7 @@ if (!directUrl) {
 }
 
 export default defineConfig({
-  schema: './src/db/schema.ts',
+  schema: './db/schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {

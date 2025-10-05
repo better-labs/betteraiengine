@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "tsx src/cli.ts",
+    "dev": "tsx cli.ts",
     "build": "tsc",
     "start": "node dist/cli.js",
     "test": "vitest",
