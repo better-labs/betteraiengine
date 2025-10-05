@@ -33,8 +33,6 @@ export async function saveRawEvent(eventData: PolymarketEvent) {
  * Save raw market JSON to database
  */
 export async function saveRawMarket(marketData: PolymarketMarket) {
-  logger.info({ marketId: marketData.id }, 'Saving raw market to database');
-
   const result = await db
     .insert(rawMarkets)
     .values({
@@ -51,7 +49,6 @@ export async function saveRawMarket(marketData: PolymarketMarket) {
     })
     .returning();
 
-  logger.info({ marketId: marketData.id, dbId: result[0].id }, 'Raw market saved');
   return result[0];
 }
 
@@ -96,8 +93,6 @@ export async function saveEvent(eventData: PolymarketEvent) {
  * Save structured market to database
  */
 export async function saveMarket(marketData: PolymarketMarket) {
-  logger.info({ marketId: marketData.id }, 'Saving structured market to database');
-
   const result = await db
     .insert(markets)
     .values({
@@ -128,7 +123,6 @@ export async function saveMarket(marketData: PolymarketMarket) {
     })
     .returning();
 
-  logger.info({ marketId: marketData.id, dbId: result[0].id }, 'Structured market saved');
   return result[0];
 }
 
@@ -147,5 +141,4 @@ export async function ingestEvent(eventData: PolymarketEvent) {
 export async function ingestMarket(marketData: PolymarketMarket) {
   await saveRawMarket(marketData);
   await saveMarket(marketData);
-  logger.info({ marketId: marketData.id }, 'Market ingestion complete');
 }

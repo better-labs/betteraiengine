@@ -56,11 +56,31 @@ export async function fetchEventBySlug(slug: string): Promise<PolymarketEvent> {
 }
 
 /**
+ * Fetch market by ID from Polymarket Gamma API
+ */
+export async function fetchMarketById(id: string): Promise<PolymarketMarket> {
+  const url = `${GAMMA_API_BASE}/markets/${id}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch market ${id}: ${response.status} ${response.statusText}`);
+  }
+
+  const market = await response.json();
+
+  if (!market) {
+    throw new Error(`Market with ID ${id} not found`);
+  }
+
+  return market as PolymarketMarket;
+}
+
+/**
  * Fetch market by slug from Polymarket Gamma API
  */
 export async function fetchMarketBySlug(slug: string): Promise<PolymarketMarket> {
   const url = `${GAMMA_API_BASE}/markets?slug=${slug}`;
-  logger.info({ slug, url }, 'Fetching market from Polymarket');
 
   const response = await fetch(url);
 
@@ -76,8 +96,6 @@ export async function fetchMarketBySlug(slug: string): Promise<PolymarketMarket>
   if (!market) {
     throw new Error(`Market with slug ${slug} not found`);
   }
-
-  logger.info({ slug, marketId: market.id }, 'Successfully fetched market');
 
   return market as PolymarketMarket;
 }
