@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchEventBySlug, fetchMarketBySlug } from './polymarket.js';
+import { fetchEventBySlug, fetchMarketBySlug } from '../services/polymarket.js';
 
 describe('Polymarket API', () => {
   describe('fetchMarketBySlug', () => {

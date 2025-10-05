@@ -21,3 +21,137 @@ BetterAI-v2 sets the foundation for more advanced features such as multi-model r
 * **Prediction Automation**: AI models (via LangChain + OpenRouter) generate structured predictions for specified markets or events.
 * **Operational Simplicity**: Headless, CLI-first design keeps setup simple without a frontend.
 * **Extensibility**: The system design makes it easy to layer in future capabilities like external research integrations, trading signals, and dashboards.
+
+---
+
+## 🧪 Experiments System
+
+BetterAI Engine uses a configuration-based experiment system that allows for safe, pluggable prediction models. Each experiment is isolated, versioned, and can be enabled/disabled independently.
+
+### Available Commands
+
+**List all experiments:**
+```bash
+pnpm dev list:experiments
+```
+
+**Run an experiment:**
+```bash
+pnpm dev run:experiment -e 001 -u <polymarket-url>
+# or with slug directly:
+pnpm dev run:experiment -e 001 -s <market-slug>
+```
+
+**Example:**
+```bash
+pnpm dev run:experiment -e 001 -u https://polymarket.com/event/college-football-champion-2026-684/will-georgia-tech-win-the-2026-college-football-national-championship
+```
+
+---
+
+## 📝 Creating a New Experiment
+
+Follow these steps to add a new experiment to the system:
+
+### 1. Create Experiment Folder
+
+Create a new folder in `experiments/` with the naming convention `expXXX` (e.g., `exp002`, `exp003`):
+
+```bash
+mkdir experiments/exp002
+```
+
+### 2. Create `main.ts` File
+
+Create `experiments/exp002/main.ts` with the following structure:
+
+```typescript
+import { logger } from '../../utils/logger.js';
+import { PolymarketMarket } from '../../services/polymarket.js';
+import { ExperimentResult } from '../types.js';
+
+/**
+ * Experiment 002: Your experiment description
+ */
+export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
+  logger.info({ experimentId: '002', marketId: market.id }, 'Starting experiment 002');
+
+  try {
+    // Your experiment logic here
+    // Access market data via: market.question, market.description, etc.
+
+    // Example: Call AI models, fetch external data, perform analysis, etc.
+    const prediction = await yourPredictionLogic(market);
+
+    return {
+      success: true,
+      data: {
+        marketId: market.id,
+        prediction: prediction,
+        // ... other data you want to return
+      },
+    };
+  } catch (error) {
+    logger.error(
+      { experimentId: '002', marketId: market.id, error: error instanceof Error ? error.message : String(error) },
+      'Experiment 002 failed'
+    );
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+```
+
+### 3. Register in Configuration
+
+Add your experiment to `experiments/config.ts`:
+
+```typescript
+export const experimentRegistry: ExperimentRegistry = {
+  // ... existing experiments ...
+
+  '002': {
+    id: '002',
+    name: 'Your Experiment Name',
+    description: 'Detailed description of what your experiment does',
+    version: '1.0.0',
+    author: 'Your Name',
+    enabled: true,  // Set to false to disable
+    tags: ['tag1', 'tag2'],
+    createdAt: '2025-10-05',
+    loader: () => import('./exp002/main.js'),
+  },
+};
+```
+
+### 4. Test Your Experiment
+
+```bash
+# List to verify it appears
+pnpm dev list:experiments
+
+# Run your experiment
+pnpm dev run:experiment -e 002 -u <market-url>
+```
+
+### Key Points
+
+- **Type Safety**: The `run()` function must accept `PolymarketMarket` and return `Promise<ExperimentResult>`
+- **Error Handling**: Always wrap logic in try/catch and return appropriate success/error states
+- **Logging**: Use structured logging with `logger.info()` and `logger.error()`
+- **Enable/Disable**: Use the `enabled` flag in config to control availability
+- **Versioning**: Update version numbers when making significant changes
+- **Metadata**: Rich metadata helps with discovery and documentation
+
+### Architecture Benefits
+
+✅ **No filesystem dependencies** - All experiments are explicitly registered
+✅ **Type-safe** - TypeScript ensures correct interfaces
+✅ **Secure** - No dynamic path resolution or arbitrary code execution
+✅ **Discoverable** - `list:experiments` shows all available experiments
+✅ **Feature flags** - Enable/disable experiments without code changes
+✅ **Metadata-rich** - Version tracking, tags, descriptions, and more
+
