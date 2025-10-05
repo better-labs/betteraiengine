@@ -20,8 +20,32 @@ import { logger } from './utils/logger.js';
 import { fetchTopMarkets, fetchMarketBySlug } from './services/polymarket.js';
 import { ingestMarket } from './services/ingestion.js';
 import { runPrediction } from './services/prediction.js';
+import { runExperiment } from './services/experiment-runner.js';
 
 const program = new Command();
+
+/**
+ * Helper: Extract slug from URL or return slug as-is
+ */
+function getMarketSlug(options: { url?: string; slug?: string }): string {
+  let slug = options.slug;
+
+  if (options.url) {
+    const urlMatch = options.url.match(/polymarket\.com\/(?:event|market)\/([^/?]+)/);
+    if (urlMatch) {
+      slug = urlMatch[1];
+    } else {
+      slug = options.url;
+    }
+  }
+
+  if (!slug) {
+    logger.error('Either --url or --slug must be provided');
+    process.exit(1);
+  }
+
+  return slug;
+}
 
 program
   .name('betteraiengine')
@@ -89,24 +113,7 @@ program
   .option('-u, --url <url>', 'Polymarket market URL')
   .option('-s, --slug <slug>', 'Market slug')
   .action(async (options) => {
-    let slug = options.slug;
-
-    // Extract slug from URL if provided
-    if (options.url) {
-      const urlMatch = options.url.match(/polymarket\.com\/(?:event|market)\/([^/?]+)/);
-      if (urlMatch) {
-        slug = urlMatch[1];
-      } else {
-        logger.error({ url: options.url }, 'Invalid Polymarket URL format');
-        process.exit(1);
-      }
-    }
-
-    if (!slug) {
-      logger.error('Either --url or --slug must be provided');
-      process.exit(1);
-    }
-
+    const slug = getMarketSlug(options);
     logger.info({ slug }, 'Starting predict:market command');
 
     try {
@@ -158,6 +165,46 @@ program
         console.error('\nStack trace:');
         console.error(error.stack);
       }
+      process.exit(1);
+    }
+  });
+
+/**
+ * Command: run:exp
+ * Run a prediction experiment with a specific experiment number
+ */
+program
+  .command('run:exp')
+  .description('Run a prediction experiment on a Polymarket market')
+  .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
+  .option('-u, --url <url>', 'Polymarket market URL')
+  .option('-s, --slug <slug>', 'Market slug')
+  .action(async (options) => {
+    const marketUrlOrSlug = getMarketSlug(options);
+    logger.info({ experiment: options.experiment, marketUrlOrSlug }, 'Starting run:exp command');
+
+    try {
+      const result = await runExperiment({
+        experimentNumber: options.experiment,
+        marketUrlOrSlug,
+      });
+
+      if (result.success) {
+        logger.info('Experiment completed successfully');
+        process.exit(0);
+      } else {
+        logger.error('Experiment failed');
+        process.exit(1);
+      }
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          experiment: options.experiment,
+          marketUrlOrSlug,
+        },
+        'Failed to run experiment'
+      );
       process.exit(1);
     }
   });
