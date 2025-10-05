@@ -25,6 +25,8 @@ export interface PolymarketMarket {
   closed?: boolean;
   volume?: string;
   liquidity?: string;
+  outcomes?: string;
+  outcomePrices?: string;
   [key: string]: unknown;
 }
 

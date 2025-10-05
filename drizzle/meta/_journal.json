@@ -8,6 +8,13 @@
       "when": 1759523329456,
       "tag": "0000_bumpy_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1759696619065,
+      "tag": "0001_cloudy_starhawk",
+      "breakpoints": true
     }
   ]
 }

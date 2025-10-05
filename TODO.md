@@ -46,7 +46,7 @@
 ### 7. Set Up Cron Jobs (for scheduled predictions)
 - [ ] In Railway project, click "New" → "Cron Job"
 - [ ] Configure schedule (e.g., `0 */6 * * *` for every 6 hours)
-- [ ] Set command to run (e.g., `node dist/cli.js predict:market --slug <market-slug>`)
+- [ ] Set command to run (e.g., `node dist/cli.js run:experiment -e 001 -s <market-slug>`)
 - [ ] Or use GitHub Actions to trigger Railway deployments on schedule
 
 ### 8. Deploy & Monitor

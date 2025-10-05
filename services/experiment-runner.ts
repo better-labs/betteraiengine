@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger.js';
 import { fetchMarketBySlug } from './polymarket.js';
-import { ingestMarket } from './ingestion.js';
+import { ingestMarket } from './polymarket-storage.js';
 import { experimentRegistry, getExperimentMetadata, isExperimentAvailable } from '../experiments/config.js';
 import { ExperimentModule } from '../experiments/types.js';
 

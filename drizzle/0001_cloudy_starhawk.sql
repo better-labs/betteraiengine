@@ -1,0 +1,1 @@
+ALTER TABLE "predictions" ADD COLUMN "raw_request" jsonb;
