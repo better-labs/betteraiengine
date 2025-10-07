@@ -163,6 +163,8 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
+Publishing
+- Add command flag to run:experiment and also a new command that publishes a summary of the prediction results and market to a gist gh gist create prediction-[predictionid].md include a link to betteraiengine https://github.com/better-labs/betteraiengine and experiment number and all inputs used.
 
 
 Benchmarking
