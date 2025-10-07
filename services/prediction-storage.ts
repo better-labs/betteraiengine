@@ -94,7 +94,7 @@ export async function saveFailedPrediction(marketId: string, error: string) {
 }
 
 /**
- * Get a prediction by ID with associated market data
+ * Get a prediction by ID with associated market data and event data
  */
 export async function getPredictionById(predictionId: string) {
   try {
@@ -116,8 +116,22 @@ export async function getPredictionById(predictionId: string) {
       throw new Error(`Prediction ${predictionId} not found`);
     }
 
-    logger.info({ predictionId }, 'Successfully fetched prediction');
-    return result[0];
+    const data = result[0];
+
+    // Extract event slug from rawMarket data if available
+    let eventSlug: string | undefined;
+    if (data.rawMarket?.data) {
+      const marketData = data.rawMarket.data as any;
+      if (marketData.events && Array.isArray(marketData.events) && marketData.events.length > 0) {
+        eventSlug = marketData.events[0].slug;
+      }
+    }
+
+    logger.info({ predictionId, eventSlug }, 'Successfully fetched prediction');
+    return {
+      ...data,
+      eventSlug,
+    };
   } catch (error) {
     logger.error(
       { predictionId, error: error instanceof Error ? error.message : String(error) },

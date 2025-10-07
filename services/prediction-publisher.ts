@@ -239,6 +239,11 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
     const prediction = data.prediction;
     const rawMarketData = data.rawMarket.data as PolymarketMarket;
 
+    // Add event slug to market data if available
+    if (data.eventSlug) {
+      rawMarketData.eventSlug = data.eventSlug;
+    }
+
     // Determine experiment ID from the prediction data or model
     // Try to extract from prediction data first
     let experimentId = 'unknown';

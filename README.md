@@ -170,8 +170,11 @@ pnpm dev run:experiment -e 002 -u <market-url>
 - Pull predictioncheck design and "open" definition from betteraiv1.
 
 ### Future Experiments list:
-- enrich each prediction with data from Exa
-Adding basic data lookup for the market from Exa.ai using datasets
+- I want to create a new experiment 004 that adds a data collection step prior to invoking the model prediction. I want to enrich the prediction with data from Exa.ai Step 1: trigger a request to exa.ai for the best possible dataset or datasets or web infomration related to the prediction market.be sure to limit this to 50k tokens or the equivalent number of characters to avoid overloading the context window for the AI model
+Step 2: will be to invoke the normal model prediction, but pass all the data from exa AI as added to the contextPrompt. 
+
+Exa AI has their web search APIs, websets api and more. Do a deep search to recommend which API(s) or multiple are best for this research. think deeply
+Example references:
 https://docs.exa.ai/reference/research/create-a-task
 https://docs.exa.ai/reference/get-contents
 https://docs.exa.ai/websets/overview
