@@ -15,6 +15,13 @@
       "when": 1759696619065,
       "tag": "0001_cloudy_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759839980890,
+      "tag": "0002_rich_nuke",
+      "breakpoints": true
     }
   ]
 }
