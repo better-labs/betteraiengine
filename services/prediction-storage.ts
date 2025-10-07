@@ -1,4 +1,5 @@
-import { db, predictionJobs, predictions } from '../db/index.js';
+import { db, predictionJobs, predictions, markets, rawMarkets } from '../db/index.js';
+import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger.js';
 
 export interface PredictionData {
@@ -89,5 +90,39 @@ export async function saveFailedPrediction(marketId: string, error: string) {
       'Failed to save failed prediction job'
     );
     throw err;
+  }
+}
+
+/**
+ * Get a prediction by ID with associated market data
+ */
+export async function getPredictionById(predictionId: string) {
+  try {
+    logger.info({ predictionId }, 'Fetching prediction from database');
+
+    const result = await db
+      .select({
+        prediction: predictions,
+        market: markets,
+        rawMarket: rawMarkets,
+      })
+      .from(predictions)
+      .leftJoin(markets, eq(predictions.marketId, markets.marketId))
+      .leftJoin(rawMarkets, eq(predictions.marketId, rawMarkets.marketId))
+      .where(eq(predictions.id, predictionId))
+      .limit(1);
+
+    if (result.length === 0) {
+      throw new Error(`Prediction ${predictionId} not found`);
+    }
+
+    logger.info({ predictionId }, 'Successfully fetched prediction');
+    return result[0];
+  } catch (error) {
+    logger.error(
+      { predictionId, error: error instanceof Error ? error.message : String(error) },
+      'Failed to fetch prediction'
+    );
+    throw error;
   }
 }

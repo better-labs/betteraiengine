@@ -2,7 +2,9 @@
 
 ## Overview
 
-BetterAI-Engine is a headless backend system for generating AI-powered predictions on Polymarket markets. It ingests market data from the Polymarket Gamma API, stores structured data and raw API payloads in Postgres, and runs a prediction pipeline via LangChain and OpenRouter. The system is operated through CLI commands and scheduled batch jobs.
+BetterAI Engine is a headless backend system for generating AI-powered predictions on Polymarket markets. It ingests market data from the Polymarket Gamma API, stores structured data and raw API payloads in Postgres, and runs a prediction pipeline via LangChain and OpenRouter. The system is operated through CLI commands and scheduled batch jobs.
+
+BetterAI Engine is part of the evolving BetterAI platform. Please see the other ongoing work here: https://github.com/better-labs
 
 ---
 

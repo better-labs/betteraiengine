@@ -19,7 +19,7 @@ import { Command } from 'commander';
 import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
-import { publishPredictionGist, checkGhCliAvailable } from './services/prediction-publisher.js';
+import { publishPredictionGist, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
 import { fetchMarketBySlug } from './services/polymarket.js';
 
 const program = new Command();
@@ -311,6 +311,51 @@ program
           jsonFile: options.json,
         },
         'Failed to run batch experiments'
+      );
+      console.error('\nError:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Command: publish:prediction
+ * Publish an existing prediction from database to a GitHub gist
+ */
+program
+  .command('publish:prediction')
+  .description('Publish an existing prediction from database to a GitHub gist')
+  .option('-p, --prediction-id <id>', 'Prediction ID (UUID from database)')
+  .action(async (options) => {
+    if (!options.predictionId) {
+      logger.error('--prediction-id option is required');
+      console.error('Error: --prediction-id option is required');
+      process.exit(1);
+    }
+
+    try {
+      // Check gh CLI availability
+      const ghAvailable = await checkGhCliAvailable();
+      if (!ghAvailable) {
+        console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
+        process.exit(1);
+      }
+
+      console.log(`\n=== PUBLISHING PREDICTION ${options.predictionId} ===\n`);
+
+      const gistUrl = await publishExistingPrediction(options.predictionId);
+
+      console.log('\n=== PUBLISH SUCCESSFUL ===');
+      console.log(`Gist URL: ${gistUrl}`);
+      console.log('===========================\n');
+
+      process.exit(0);
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          predictionId: options.predictionId,
+        },
+        'Failed to publish prediction'
       );
       console.error('\nError:', error instanceof Error ? error.message : String(error));
       process.exit(1);
