@@ -35,6 +35,19 @@ export const experimentRegistry: ExperimentRegistry = {
     updatedAt: '2025-10-07',
     loader: () => import('./exp002/main.js'),
   },
+
+  '003': {
+    id: '003',
+    name: 'Claude Sonnet 4.5 Separated Reasoning',
+    description: 'Builds on exp002 with separated reasoning fields: outcomeReasoning (why YES/NO/UNCERTAIN) and confidenceReasoning (why specific confidence level).',
+    version: '1.0.0',
+    author: 'BetterAI Team',
+    enabled: true,
+    tags: ['claude', 'sonnet-4.5', 'structured-output', 'zod', 'delta', 'separated-reasoning'],
+    createdAt: '2025-10-07',
+    updatedAt: '2025-10-07',
+    loader: () => import('./exp003/main.js'),
+  },
 };
 
 /**

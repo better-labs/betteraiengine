@@ -19,6 +19,8 @@ import { Command } from 'commander';
 import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
+import { publishPredictionGist, checkGhCliAvailable } from './services/prediction-publisher.js';
+import { fetchMarketBySlug } from './services/polymarket.js';
 
 const program = new Command();
 
@@ -105,6 +107,7 @@ program
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-u, --url <url>', 'Polymarket market URL')
   .option('-s, --slug <slug>', 'Market slug')
+  .option('-g, --publish-gist', 'Publish prediction results to a GitHub gist')
   .action(async (options) => {
     const marketSlug = getMarketSlug(options);
     logger.info({ experiment: options.experiment, marketSlug }, 'Starting run:experiment command');
@@ -122,6 +125,35 @@ program
         if (result.data) {
           console.log('\nResults:');
           console.log(JSON.stringify(result.data, null, 2));
+        }
+
+        // Publish to gist if requested
+        if (options.publishGist) {
+          console.log('\nPublishing to GitHub gist...');
+
+          const ghAvailable = await checkGhCliAvailable();
+          if (!ghAvailable) {
+            console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
+            process.exit(1);
+          }
+
+          try {
+            const market = await fetchMarketBySlug(marketSlug);
+            const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
+
+            const gistUrl = await publishPredictionGist({
+              predictionId,
+              experimentId: result.experimentId,
+              experimentName: result.experimentName,
+              market,
+              result,
+            });
+
+            console.log(`✓ Published to gist: ${gistUrl}`);
+          } catch (gistError) {
+            console.error('Failed to publish gist:', gistError instanceof Error ? gistError.message : String(gistError));
+            logger.error({ error: gistError }, 'Failed to publish gist');
+          }
         }
 
         process.exit(0);
@@ -156,6 +188,7 @@ program
   .description('Run prediction experiments on multiple Polymarket markets from a JSON file')
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-j, --json <path>', 'Path to JSON file containing array of Polymarket market URLs')
+  .option('-g, --publish-gist', 'Publish prediction results to a GitHub gist for each market')
   .action(async (options) => {
     if (!options.json) {
       logger.error('--json option is required');
@@ -177,9 +210,19 @@ program
       console.log(`Experiment: ${options.experiment}`);
       console.log(`Total markets: ${urls.length}\n`);
 
+      // Check gh CLI availability if gist publishing is requested
+      if (options.publishGist) {
+        const ghAvailable = await checkGhCliAvailable();
+        if (!ghAvailable) {
+          console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
+          process.exit(1);
+        }
+      }
+
       const results = [];
       let successCount = 0;
       let failCount = 0;
+      const gistUrls: string[] = [];
 
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
@@ -205,6 +248,28 @@ program
           if (result.success) {
             successCount++;
             console.log(`✓ Success: ${result.marketId}`);
+
+            // Publish to gist if requested
+            if (options.publishGist) {
+              try {
+                const market = await fetchMarketBySlug(marketSlug);
+                const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
+
+                const gistUrl = await publishPredictionGist({
+                  predictionId,
+                  experimentId: result.experimentId,
+                  experimentName: result.experimentName,
+                  market,
+                  result,
+                });
+
+                gistUrls.push(gistUrl);
+                console.log(`  ✓ Published to gist: ${gistUrl}`);
+              } catch (gistError) {
+                console.log(`  ✗ Failed to publish gist: ${gistError instanceof Error ? gistError.message : String(gistError)}`);
+                logger.error({ error: gistError }, 'Failed to publish gist');
+              }
+            }
           } else {
             failCount++;
             console.log(`✗ Failed: ${result.error}`);
@@ -226,6 +291,14 @@ program
       console.log(`Total: ${urls.length}`);
       console.log(`Success: ${successCount}`);
       console.log(`Failed: ${failCount}`);
+
+      if (options.publishGist && gistUrls.length > 0) {
+        console.log(`\n=== PUBLISHED GISTS (${gistUrls.length}) ===`);
+        gistUrls.forEach((url, idx) => {
+          console.log(`${idx + 1}. ${url}`);
+        });
+      }
+
       console.log('\nDetailed results:');
       console.log(JSON.stringify(results, null, 2));
 

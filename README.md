@@ -164,7 +164,13 @@ pnpm dev run:experiment -e 002 -u <market-url>
 ## Todos
 
 Publishing
-- Add command flag to run:experiment and also a new command that publishes a summary of the prediction results and market to a gist gh gist create prediction-[predictionid].md include a link to betteraiengine https://github.com/better-labs/betteraiengine and experiment number and all inputs used.
+- Add command option to run:experiment and run:experiments-batch that publishes a summary of the prediction results and market to a gist gh gist create prediction-[predictionid].md include a link to betteraiengine https://github.com/better-labs/betteraiengine and experiment number and all inputs used.
+
+put the bulk of the code for the new option functionality under /services/prediction-publish.ts
+
+start the markdown with an overview of the AI prediction delta and any key fields from the prediction object. Then add a section that recaps the market overview
+
+towards the end, include the original raw request, response, model id, and any valuable metadata such as when the job was ran, number of tokens, etc.
 
 
 Benchmarking
@@ -179,7 +185,9 @@ https://docs.exa.ai/reference/get-contents
 https://docs.exa.ai/websets/overview
 https://websets.exa.ai/websets?_gl=1*zer51j*_gcl_au*MTI4MzA0ODI2Ni4xNzU3MDIxNTE4*_ga*NTE3MDI5MDQwLjE3NTcwMjE1MTg.*_ga_CPMTFL65Z3*czE3NTk3MDgxMzMkbzUkZzEkdDE3NTk3MDgxMzMkajYwJGwwJGgxMTM0NzM5MDM0
 - enrich each prediction with data from x/twitter GROK search first
-- modify prediction result json to include to separate discrete prediction child elements outcomeReasoning (the reasoning for the outcome) and confidenceReasoning (the reason for the outcome)
+
+- post update to twitter
+
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
 - Optimize the system prompt. Pipe one AI's response to another AI
