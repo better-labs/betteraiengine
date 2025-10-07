@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb, serial, uuid, integer, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, jsonb, serial, uuid, integer, boolean, real } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Raw Event table - stores pure JSONB from Polymarket API
@@ -108,6 +108,9 @@ export const predictions = pgTable('predictions', {
   model: text('model'),
   promptTokens: integer('prompt_tokens'),
   completionTokens: integer('completion_tokens'),
+
+  // Prediction metrics
+  predictionDelta: real('prediction_delta'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

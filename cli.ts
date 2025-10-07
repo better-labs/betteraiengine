@@ -58,57 +58,6 @@ program
   .version('1.0.0');
 
 /**
- * Command: ingest:topMarkets
- * Fetches top markets from Polymarket and ingests them into the database
- */
-// program
-//   .command('ingest:topMarkets')
-//   .description('Fetch and ingest top markets by volume/liquidity from Polymarket')
-//   .option('-l, --limit <number>', 'Number of markets to fetch', '10')
-//   .action(async (options) => {
-//     const limit = parseInt(options.limit, 10);
-
-//     logger.info({ limit }, 'Starting ingest:topMarkets');
-
-//     try {
-//       // Fetch top markets
-//       const markets = await fetchTopMarkets(limit);
-
-//       logger.info({ count: markets.length }, 'Fetched markets, starting ingestion');
-
-//       // Ingest each market
-//       let successCount = 0;
-//       let errorCount = 0;
-
-//       for (const market of markets) {
-//         try {
-//           await ingestMarket(market);
-//           successCount++;
-//         } catch (error) {
-//           errorCount++;
-//           logger.error(
-//             { marketId: market.id, error: error instanceof Error ? error.message : String(error) },
-//             'Failed to ingest market'
-//           );
-//         }
-//       }
-
-//       logger.info(
-//         { total: markets.length, success: successCount, errors: errorCount },
-//         'Ingestion complete'
-//       );
-
-//       process.exit(0);
-//     } catch (error) {
-//       logger.error(
-//         { error: error instanceof Error ? error.message : String(error) },
-//         'Failed to fetch or ingest top markets'
-//       );
-//       process.exit(1);
-//     }
-//   });
-
-/**
  * Command: list:experiments
  * List all available experiments with their metadata
  */
@@ -174,7 +123,7 @@ program
           console.log('\nResults:');
           console.log(JSON.stringify(result.data, null, 2));
         }
-        
+
         process.exit(0);
       } else {
         console.log('\n=== EXPERIMENT FAILED ===');
@@ -192,6 +141,103 @@ program
           marketSlug,
         },
         'Failed to run experiment'
+      );
+      console.error('\nError:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Command: run:experiments-batch
+ * Run experiments on multiple markets from a JSON file
+ */
+program
+  .command('run:experiments-batch')
+  .description('Run prediction experiments on multiple Polymarket markets from a JSON file')
+  .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
+  .option('-j, --json <path>', 'Path to JSON file containing array of Polymarket market URLs')
+  .action(async (options) => {
+    if (!options.json) {
+      logger.error('--json option is required');
+      console.error('Error: --json option is required');
+      process.exit(1);
+    }
+
+    try {
+      // Read and parse JSON file
+      const fs = await import('fs/promises');
+      const jsonContent = await fs.readFile(options.json, 'utf-8');
+      const urls: string[] = JSON.parse(jsonContent);
+
+      if (!Array.isArray(urls)) {
+        throw new Error('JSON file must contain an array of URLs');
+      }
+
+      console.log(`\n=== BATCH EXPERIMENT RUN ===`);
+      console.log(`Experiment: ${options.experiment}`);
+      console.log(`Total markets: ${urls.length}\n`);
+
+      const results = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        console.log(`\n[${i + 1}/${urls.length}] Processing: ${url}`);
+
+        try {
+          const marketSlug = getMarketSlug({ url });
+          const result = await runExperiment({
+            experimentNumber: options.experiment,
+            marketSlug,
+          });
+
+          results.push({
+            url,
+            marketSlug,
+            success: result.success,
+            experimentId: result.experimentId,
+            marketId: result.marketId,
+            data: result.data,
+            error: result.error,
+          });
+
+          if (result.success) {
+            successCount++;
+            console.log(`✓ Success: ${result.marketId}`);
+          } else {
+            failCount++;
+            console.log(`✗ Failed: ${result.error}`);
+          }
+        } catch (error) {
+          failCount++;
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          results.push({
+            url,
+            marketSlug: null,
+            success: false,
+            error: errorMsg,
+          });
+          console.log(`✗ Error: ${errorMsg}`);
+        }
+      }
+
+      console.log('\n=== BATCH EXPERIMENT SUMMARY ===');
+      console.log(`Total: ${urls.length}`);
+      console.log(`Success: ${successCount}`);
+      console.log(`Failed: ${failCount}`);
+      console.log('\nDetailed results:');
+      console.log(JSON.stringify(results, null, 2));
+
+      process.exit(failCount > 0 ? 1 : 0);
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          experiment: options.experiment,
+          jsonFile: options.json,
+        },
+        'Failed to run batch experiments'
       );
       console.error('\nError:', error instanceof Error ? error.message : String(error));
       process.exit(1);

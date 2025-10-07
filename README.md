@@ -61,7 +61,11 @@ Create a new folder in `experiments/` with the naming convention `expXXX` (e.g.,
 mkdir experiments/exp002
 ```
 
-### 2. Create `main.ts` File
+### 2. (Optional) Create a README.md File
+
+To explain the architecture of your experiment (data pipeline).
+
+### 3. Create `main.ts` File
 
 Create `experiments/exp002/main.ts` with the following structure:
 
@@ -105,7 +109,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
 }
 ```
 
-### 3. Register in Configuration
+### 4. Register in Configuration
 
 Add your experiment to `experiments/config.ts`:
 
@@ -127,7 +131,7 @@ export const experimentRegistry: ExperimentRegistry = {
 };
 ```
 
-### 4. Test Your Experiment
+### 5. Test Your Experiment
 
 ```bash
 # List to verify it appears
@@ -139,7 +143,7 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ### Key Points
 
-- **Type Safety**: The `run()` function must accept `PolymarketMarket` and return `Promise<ExperimentResult>`
+- **Type Safety**: The `run()` function must accept `PolymarketMarket` object type as input and return `Promise<ExperimentResult>`
 - **Error Handling**: Always wrap logic in try/catch and return appropriate success/error states
 - **Logging**: Use structured logging with `logger.info()` and `logger.error()`
 - **Enable/Disable**: Use the `enabled` flag in config to control availability
@@ -157,13 +161,25 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 
 
-
 ## Todos
 
-exp002
-Adding AI Delta calculation for the market after the prediction
-Adding basic data lookup for the market from Exa.ai using datasets
 
-exp003
-Add custom user supplied context
+
+Benchmarking
+- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
+- Pull predictioncheck design and "open" definition from betteraiv1.
+
+Future Experiments list:
+- enrich each prediction with data from Exa
+Adding basic data lookup for the market from Exa.ai using datasets
+https://docs.exa.ai/reference/research/create-a-task
+https://docs.exa.ai/reference/get-contents
+https://docs.exa.ai/websets/overview
+https://websets.exa.ai/websets?_gl=1*zer51j*_gcl_au*MTI4MzA0ODI2Ni4xNzU3MDIxNTE4*_ga*NTE3MDI5MDQwLjE3NTcwMjE1MTg.*_ga_CPMTFL65Z3*czE3NTk3MDgxMzMkbzUkZzEkdDE3NTk3MDgxMzMkajYwJGwwJGgxMTM0NzM5MDM0
+- enrich each prediction with data from x/twitter GROK search first
+- modify prediction result json to include to separate discrete prediction child elements outcomeReasoning (the reasoning for the outcome) and confidenceReasoning (the reason for the outcome)
+- run the prediction across multiple top models from config/models.ts, including open source and chinese models
+- Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
+- Optimize the system prompt. Pipe one AI's response to another AI
+
 

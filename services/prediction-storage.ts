@@ -9,6 +9,7 @@ export interface PredictionData {
   model?: string;
   promptTokens?: number;
   completionTokens?: number;
+  predictionDelta?: number;
 }
 
 /**
@@ -41,6 +42,7 @@ export async function savePrediction(data: PredictionData) {
         model: data.model,
         promptTokens: data.promptTokens,
         completionTokens: data.completionTokens,
+        predictionDelta: data.predictionDelta,
       })
       .returning();
 

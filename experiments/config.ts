@@ -23,18 +23,18 @@ export const experimentRegistry: ExperimentRegistry = {
     loader: () => import('./exp001/main.js'),
   },
 
-  // Example: Future experiment (disabled)
-  // '002': {
-  //   id: '002',
-  //   name: 'Advanced Multi-Model Ensemble',
-  //   description: 'Combines predictions from multiple models using weighted ensemble.',
-  //   version: '1.0.0',
-  //   author: 'BetterAI Team',
-  //   enabled: false,
-  //   tags: ['ensemble', 'advanced', 'multi-model'],
-  //   createdAt: '2025-10-06',
-  //   loader: () => import('./exp002/main.js'),
-  // },
+  '002': {
+    id: '002',
+    name: 'Claude Sonnet 4.5 Structured Output',
+    description: 'Enhanced prediction using Claude Sonnet 4.5 via OpenRouter with structured JSON output (Zod schema). Includes prediction delta calculation.',
+    version: '1.0.0',
+    author: 'BetterAI Team',
+    enabled: true,
+    tags: ['claude', 'sonnet-4.5', 'structured-output', 'zod', 'delta'],
+    createdAt: '2025-10-07',
+    updatedAt: '2025-10-07',
+    loader: () => import('./exp002/main.js'),
+  },
 };
 
 /**
