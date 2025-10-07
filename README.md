@@ -176,6 +176,7 @@ pnpm dev run:experiment -e 002 -u <market-url>
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
 - Optimize the system prompt. Pipe one AI's response to another AI
+- test adding websets enrichment
 
 
 ### Benchmarking

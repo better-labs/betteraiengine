@@ -244,24 +244,48 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
       rawMarketData.eventSlug = data.eventSlug;
     }
 
-    // Determine experiment ID from the prediction data or model
-    // Try to extract from prediction data first
-    let experimentId = 'unknown';
+    // Determine experiment ID using stored metadata or fallbacks
+    let experimentId =
+      typeof prediction.experimentId === 'string' && prediction.experimentId.length > 0
+        ? prediction.experimentId
+        : 'unknown';
     let experimentName = 'Unknown Experiment';
 
-    // Check if prediction data contains experiment info
-    if (prediction.prediction && typeof prediction.prediction === 'object') {
-      const predData = prediction.prediction as any;
+    const predictionPayload = (prediction.prediction ?? {}) as Record<string, unknown>;
+    const rawRequestPayload = (prediction.rawRequest ?? {}) as Record<string, unknown>;
 
-      // Try to infer experiment from model name
-      if (prediction.model) {
-        if (prediction.model.includes('gpt-4o')) {
-          experimentId = '001';
-        } else if (prediction.model.includes('claude-sonnet-4.5')) {
-          experimentId = '003';
-        } else if (prediction.model.includes('claude')) {
-          experimentId = '002';
-        }
+    // Priority 1: explicit experiment ID stored alongside the prediction
+    if (experimentId === 'unknown') {
+      if (typeof rawRequestPayload.experimentId === 'string') {
+        experimentId = rawRequestPayload.experimentId;
+      } else if (typeof predictionPayload.experimentId === 'string') {
+        experimentId = predictionPayload.experimentId;
+      }
+    }
+
+    // Priority 2: derive from enrichment metadata
+    if (experimentId === 'unknown') {
+      const enrichmentMetadata = predictionPayload['enrichmentMetadata'] as { source?: string } | undefined;
+      const enrichmentSource = enrichmentMetadata?.source;
+      const rawEnrichment =
+        typeof rawRequestPayload.enrichment === 'string'
+          ? rawRequestPayload.enrichment
+          : undefined;
+
+      if (enrichmentSource === 'exa-ai' || rawEnrichment === 'exa-ai-research') {
+        experimentId = '004';
+      }
+    }
+
+    // Priority 3: fall back to legacy model heuristics
+    if (experimentId === 'unknown' && typeof prediction.model === 'string') {
+      const modelName = prediction.model.toLowerCase();
+      if (modelName.includes('gpt-4o')) {
+        experimentId = '001';
+      } else if (modelName.includes('claude-sonnet-4.5')) {
+        experimentId = '003';
+      } else if (modelName.includes('claude')) {
+        experimentId = '002';
       }
     }
 
@@ -280,6 +304,7 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
       experimentName,
       marketId: prediction.marketId || rawMarketData.id,
       data: {
+        experimentId,
         marketId: prediction.marketId || rawMarketData.id,
         prediction: prediction.prediction,
         predictionDelta: prediction.predictionDelta,

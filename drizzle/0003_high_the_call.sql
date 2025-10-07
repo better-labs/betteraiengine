@@ -1,0 +1,1 @@
+ALTER TABLE "predictions" ADD COLUMN "experiment_id" text DEFAULT 'unknown' NOT NULL;

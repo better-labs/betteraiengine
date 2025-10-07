@@ -49,7 +49,7 @@ After deep research into Exa AI's APIs, I recommend **Search + Contents** over a
 
 - **Research API**: Unavailable (500 errors) and likely overkill for single predictions
 - **Answer API**: Too narrow - gives one answer instead of rich research context
-- **Websets**: Pre-curated collections lack the dynamism needed for diverse markets
+- **Websets**: Optimized for building monitored or curated web collections with webhooks—powerful, but heavier than needed for on-demand, single-market research
 
 ## Key Features
 

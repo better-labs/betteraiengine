@@ -270,6 +270,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     // Save prediction to database with enrichment metadata
     await savePrediction({
       marketId: market.id,
+      experimentId: '004',
       prediction: {
         ...predictionData,
         enrichmentMetadata: {
@@ -280,6 +281,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
         },
       },
       rawRequest: {
+        experimentId: '004',
         messages: messages.map(msg => ({
           role: msg._getType(),
           content: msg.content,

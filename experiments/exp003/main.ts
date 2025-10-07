@@ -205,8 +205,10 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     // Save prediction to database
     await savePrediction({
       marketId: market.id,
+      experimentId: '003',
       prediction: predictionData,
       rawRequest: {
+        experimentId: '003',
         messages: messages.map(msg => ({
           role: msg._getType(),
           content: msg.content,

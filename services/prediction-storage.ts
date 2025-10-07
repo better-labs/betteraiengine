@@ -4,6 +4,7 @@ import { logger } from '../utils/logger.js';
 
 export interface PredictionData {
   marketId: string;
+  experimentId: string;
   prediction: any;
   rawRequest?: any;
   rawResponse?: any;
@@ -37,6 +38,7 @@ export async function savePrediction(data: PredictionData) {
       .values({
         jobId: job[0].id,
         marketId: data.marketId,
+        experimentId: data.experimentId,
         prediction: data.prediction,
         rawRequest: data.rawRequest,
         rawResponse: data.rawResponse,
