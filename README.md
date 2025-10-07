@@ -165,23 +165,11 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
-### Benchmarking
-- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
-- Pull predictioncheck design and "open" definition from betteraiv1.
-
 ### Future Experiments list:
-- I want to create a new experiment 004 that adds a data collection step prior to invoking the model prediction. I want to enrich the prediction with data from Exa.ai Step 1: trigger a request to exa.ai for the best possible dataset or datasets or web infomration related to the prediction market.be sure to limit this to 50k tokens or the equivalent number of characters to avoid overloading the context window for the AI model
-Step 2: will be to invoke the normal model prediction, but pass all the data from exa AI as added to the contextPrompt. 
 
-Exa AI has their web search APIs, websets api and more. Do a deep search to recommend which API(s) or multiple are best for this research. think deeply
-Example references:
-https://docs.exa.ai/reference/research/create-a-task
-https://docs.exa.ai/reference/get-contents
-https://docs.exa.ai/websets/overview
-https://websets.exa.ai/websets?_gl=1*zer51j*_gcl_au*MTI4MzA0ODI2Ni4xNzU3MDIxNTE4*_ga*NTE3MDI5MDQwLjE3NTcwMjE1MTg.*_ga_CPMTFL65Z3*czE3NTk3MDgxMzMkbzUkZzEkdDE3NTk3MDgxMzMkajYwJGwwJGgxMTM0NzM5MDM0
 - enrich each prediction with data from x/twitter GROK search first
 
-- post update to twitter - "[model] predicts .."
+- post update to twitter - "[model] predicts .." eg https://x.com/Kalshi/status/1975612799192866873
 
 - consider whether to generate a twitter overview image for the prediction?
 
@@ -190,3 +178,6 @@ https://websets.exa.ai/websets?_gl=1*zer51j*_gcl_au*MTI4MzA0ODI2Ni4xNzU3MDIxNTE4
 - Optimize the system prompt. Pipe one AI's response to another AI
 
 
+### Benchmarking
+- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
+- Pull predictioncheck design and "open" definition from betteraiv1.
