@@ -167,6 +167,8 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ### Future Experiments list:
 
+- add optional field to published doc: modify published data output to highlight research more clearly. 
+
 - enrich each prediction with data from x/twitter GROK search first
 
 - post update to twitter - "[model] predicts .." eg https://x.com/Kalshi/status/1975612799192866873
