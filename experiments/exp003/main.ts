@@ -16,16 +16,17 @@ export interface ExperimentResult {
 }
 
 /**
- * Zod schema for structured prediction output
+ * Zod schema for structured prediction output with separated reasoning
  */
 const PredictionSchema = z.object({
   marketId: z.string().describe('Polymarket market identifier'),
   question: z.string().describe('Market question being analyzed'),
   prediction: z.object({
     outcome: z.enum(['YES', 'NO', 'UNCERTAIN']).describe('Predicted outcome'),
+    outcomeReasoning: z.string().min(10).describe('Detailed reasoning for the predicted outcome'),
     confidence: z.number().min(0).max(100).describe('Confidence level in prediction (0-100)'),
+    confidenceReasoning: z.string().min(10).describe('Detailed reasoning for the confidence level'),
     probability: z.number().min(0).max(100).describe('Estimated probability of YES outcome (0-100)'),
-    reasoning: z.string().min(10).describe('Detailed explanation for the prediction'),
   }),
   keyFactors: z.array(z.string()).min(1).describe('Key factors influencing the prediction'),
   dataQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).describe('Quality of available data for analysis'),
@@ -43,9 +44,10 @@ function buildSystemPrompt(): string {
 Guidelines:
 - Analyze the question carefully and consider all available information
 - Provide a clear outcome prediction: YES, NO, or UNCERTAIN
+- Provide separate, detailed reasoning for your outcome prediction
 - Assign a confidence level (0-100) based on the strength of available evidence
+- Provide separate, detailed reasoning for your confidence level
 - Estimate a probability (0-100) for the YES outcome
-- Provide detailed reasoning for your prediction
 - Identify key factors that influence the outcome
 - Assess the quality of available data
 
@@ -76,9 +78,10 @@ Please analyze this market and provide a structured prediction following this EX
   "question": "${market.question}",
   "prediction": {
     "outcome": "YES" | "NO" | "UNCERTAIN",
+    "outcomeReasoning": "<detailed reasoning for the predicted outcome>",
     "confidence": <number 0-100>,
-    "probability": <number 0-100>,
-    "reasoning": "<detailed explanation>"
+    "confidenceReasoning": "<detailed reasoning for the confidence level>",
+    "probability": <number 0-100>
   },
   "keyFactors": ["<factor 1>", "<factor 2>", ...],
   "dataQuality": "HIGH" | "MEDIUM" | "LOW",
@@ -89,13 +92,14 @@ IMPORTANT:
 - Respond ONLY with valid JSON
 - Do not include markdown code blocks or any other text
 - The probability field should be your estimated probability of the YES outcome (0-100)
+- Provide separate reasoning for both the outcome and confidence level
 - Ensure all required fields are included`;
 
   return marketInfo;
 }
 
 /**
- * Experiment 002: Claude Sonnet 4.5 with structured output
+ * Experiment 003: Claude Sonnet 4.5 with separated reasoning fields
  * Entry point for running this experiment
  */
 export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
@@ -147,7 +151,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
       const parseErrorMessage = parseError instanceof Error ? parseError.message : String(parseError);
       logger.error(
         {
-          experimentId: '002',
+          experimentId: '003',
           marketId: market.id,
           error: parseErrorMessage,
           responseContent: response.content,
@@ -159,7 +163,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
 
     logger.info(
       {
-        experimentId: '002',
+        experimentId: '003',
         marketId: market.id,
         outcome: predictionData.prediction.outcome,
         confidence: predictionData.prediction.confidence,
@@ -179,7 +183,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
       predictionDelta = deltaResult.value;
       logger.info(
         {
-          experimentId: '002',
+          experimentId: '003',
           marketId: market.id,
           delta: predictionDelta,
           marketPrice: market.outcomePrices,
@@ -190,7 +194,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     } else {
       logger.warn(
         {
-          experimentId: '002',
+          experimentId: '003',
           marketId: market.id,
           error: deltaResult.error,
         },
@@ -201,10 +205,10 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     // Save prediction to database
     await savePrediction({
       marketId: market.id,
-      experimentId: '002',
+      experimentId: '003',
       prediction: predictionData,
       rawRequest: {
-        experimentId: '002',
+        experimentId: '003',
         messages: messages.map(msg => ({
           role: msg._getType(),
           content: msg.content,
@@ -232,8 +236,8 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     logger.error(
-      { experimentId: '002', marketId: market.id, error: errorMessage },
-      'Experiment 002 failed'
+      { experimentId: '003', marketId: market.id, error: errorMessage },
+      'Experiment 003 failed'
     );
 
     // Save failed prediction job

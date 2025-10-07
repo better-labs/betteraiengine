@@ -35,6 +35,32 @@ export const experimentRegistry: ExperimentRegistry = {
     updatedAt: '2025-10-07',
     loader: () => import('./exp002/main.js'),
   },
+
+  '003': {
+    id: '003',
+    name: 'Claude Sonnet 4.5 Separated Reasoning',
+    description: 'Builds on exp002 with separated reasoning fields: outcomeReasoning (why YES/NO/UNCERTAIN) and confidenceReasoning (why specific confidence level).',
+    version: '1.0.0',
+    author: 'BetterAI Team',
+    enabled: true,
+    tags: ['claude', 'sonnet-4.5', 'structured-output', 'zod', 'delta', 'separated-reasoning'],
+    createdAt: '2025-10-07',
+    updatedAt: '2025-10-07',
+    loader: () => import('./exp003/main.js'),
+  },
+
+  '004': {
+    id: '004',
+    name: 'Exa AI Web Research Enrichment',
+    description: 'Enriches predictions with real-time web research data from Exa AI. Uses Search + Contents APIs to gather relevant sources, then passes enriched context to Claude Sonnet 4.5 for structured prediction with source citations.',
+    version: '1.0.0',
+    author: 'BetterAI Team',
+    enabled: true,
+    tags: ['claude', 'sonnet-4.5', 'exa-ai', 'web-research', 'enrichment', 'structured-output', 'zod', 'delta'],
+    createdAt: '2025-10-07',
+    updatedAt: '2025-10-07',
+    loader: () => import('./exp004/main.js'),
+  },
 };
 
 /**

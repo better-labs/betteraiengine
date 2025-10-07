@@ -98,6 +98,7 @@ export const predictions = pgTable('predictions', {
   id: uuid('id').defaultRandom().primaryKey(),
   jobId: uuid('job_id').references(() => predictionJobs.id).notNull(),
   marketId: text('market_id').references(() => markets.marketId),
+  experimentId: text('experiment_id').notNull().default('unknown'),
 
   // Prediction output
   prediction: jsonb('prediction').notNull(), // Structured prediction output

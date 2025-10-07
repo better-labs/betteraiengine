@@ -22,6 +22,13 @@
       "when": 1759839980890,
       "tag": "0002_rich_nuke",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759868806788,
+      "tag": "0003_high_the_call",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,8 @@ import { Command } from 'commander';
 import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
+import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
+import { fetchMarketBySlug } from './services/polymarket.js';
 
 const program = new Command();
 
@@ -105,6 +107,7 @@ program
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-u, --url <url>', 'Polymarket market URL')
   .option('-s, --slug <slug>', 'Market slug')
+  .option('-g, --publish-gist', 'Publish prediction results to GitHub repository (better-labs/prediction-history)')
   .action(async (options) => {
     const marketSlug = getMarketSlug(options);
     logger.info({ experiment: options.experiment, marketSlug }, 'Starting run:experiment command');
@@ -122,6 +125,35 @@ program
         if (result.data) {
           console.log('\nResults:');
           console.log(JSON.stringify(result.data, null, 2));
+        }
+
+        // Publish to repository if requested
+        if (options.publishGist) {
+          console.log('\nPublishing to GitHub repository...');
+
+          const ghAvailable = await checkGhCliAvailable();
+          if (!ghAvailable) {
+            console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
+            process.exit(1);
+          }
+
+          try {
+            const market = await fetchMarketBySlug(marketSlug);
+            const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
+
+            const fileUrl = await publishPrediction({
+              predictionId,
+              experimentId: result.experimentId,
+              experimentName: result.experimentName,
+              market,
+              result,
+            });
+
+            console.log(`✓ Published to repository: ${fileUrl}`);
+          } catch (publishError) {
+            console.error('Failed to publish:', publishError instanceof Error ? publishError.message : String(publishError));
+            logger.error({ error: publishError }, 'Failed to publish to repository');
+          }
         }
 
         process.exit(0);
@@ -156,6 +188,7 @@ program
   .description('Run prediction experiments on multiple Polymarket markets from a JSON file')
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-j, --json <path>', 'Path to JSON file containing array of Polymarket market URLs')
+  .option('-g, --publish-gist', 'Publish prediction results to GitHub repository for each market')
   .action(async (options) => {
     if (!options.json) {
       logger.error('--json option is required');
@@ -177,9 +210,19 @@ program
       console.log(`Experiment: ${options.experiment}`);
       console.log(`Total markets: ${urls.length}\n`);
 
+      // Check gh CLI availability if gist publishing is requested
+      if (options.publishGist) {
+        const ghAvailable = await checkGhCliAvailable();
+        if (!ghAvailable) {
+          console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
+          process.exit(1);
+        }
+      }
+
       const results = [];
       let successCount = 0;
       let failCount = 0;
+      const gistUrls: string[] = [];
 
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
@@ -205,6 +248,28 @@ program
           if (result.success) {
             successCount++;
             console.log(`✓ Success: ${result.marketId}`);
+
+            // Publish to repository if requested
+            if (options.publishGist) {
+              try {
+                const market = await fetchMarketBySlug(marketSlug);
+                const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
+
+                const fileUrl = await publishPrediction({
+                  predictionId,
+                  experimentId: result.experimentId,
+                  experimentName: result.experimentName,
+                  market,
+                  result,
+                });
+
+                gistUrls.push(fileUrl);
+                console.log(`  ✓ Published to repository: ${fileUrl}`);
+              } catch (publishError) {
+                console.log(`  ✗ Failed to publish: ${publishError instanceof Error ? publishError.message : String(publishError)}`);
+                logger.error({ error: publishError }, 'Failed to publish to repository');
+              }
+            }
           } else {
             failCount++;
             console.log(`✗ Failed: ${result.error}`);
@@ -226,6 +291,14 @@ program
       console.log(`Total: ${urls.length}`);
       console.log(`Success: ${successCount}`);
       console.log(`Failed: ${failCount}`);
+
+      if (options.publishGist && gistUrls.length > 0) {
+        console.log(`\n=== PUBLISHED FILES (${gistUrls.length}) ===`);
+        gistUrls.forEach((url, idx) => {
+          console.log(`${idx + 1}. ${url}`);
+        });
+      }
+
       console.log('\nDetailed results:');
       console.log(JSON.stringify(results, null, 2));
 
@@ -238,6 +311,51 @@ program
           jsonFile: options.json,
         },
         'Failed to run batch experiments'
+      );
+      console.error('\nError:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Command: publish:prediction
+ * Publish an existing prediction from database to GitHub repository
+ */
+program
+  .command('publish:prediction')
+  .description('Publish an existing prediction from database to GitHub repository')
+  .option('-p, --prediction-id <id>', 'Prediction ID (UUID from database)')
+  .action(async (options) => {
+    if (!options.predictionId) {
+      logger.error('--prediction-id option is required');
+      console.error('Error: --prediction-id option is required');
+      process.exit(1);
+    }
+
+    try {
+      // Check gh CLI availability
+      const ghAvailable = await checkGhCliAvailable();
+      if (!ghAvailable) {
+        console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
+        process.exit(1);
+      }
+
+      console.log(`\n=== PUBLISHING PREDICTION ${options.predictionId} ===\n`);
+
+      const gistUrl = await publishExistingPrediction(options.predictionId);
+
+      console.log('\n=== PUBLISH SUCCESSFUL ===');
+      console.log(`Gist URL: ${gistUrl}`);
+      console.log('===========================\n');
+
+      process.exit(0);
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          predictionId: options.predictionId,
+        },
+        'Failed to publish prediction'
       );
       console.error('\nError:', error instanceof Error ? error.message : String(error));
       process.exit(1);

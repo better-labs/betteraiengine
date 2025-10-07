@@ -2,7 +2,9 @@
 
 ## Overview
 
-BetterAI-Engine is a headless backend system for generating AI-powered predictions on Polymarket markets. It ingests market data from the Polymarket Gamma API, stores structured data and raw API payloads in Postgres, and runs a prediction pipeline via LangChain and OpenRouter. The system is operated through CLI commands and scheduled batch jobs.
+BetterAI Engine is a headless backend system for generating AI-powered predictions on Polymarket markets. It ingests market data from the Polymarket Gamma API, stores structured data and raw API payloads in Postgres, and runs a prediction pipeline via LangChain and OpenRouter. The system is operated through CLI commands and scheduled batch jobs.
+
+BetterAI Engine is part of the evolving BetterAI platform. Please see the other ongoing work here: https://github.com/better-labs
 
 ---
 
@@ -163,23 +165,22 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
+### Future Experiments list:
 
+- add optional field to published doc: modify published data output to highlight research more clearly. 
 
-Benchmarking
-- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
-- Pull predictioncheck design and "open" definition from betteraiv1.
-
-Future Experiments list:
-- enrich each prediction with data from Exa
-Adding basic data lookup for the market from Exa.ai using datasets
-https://docs.exa.ai/reference/research/create-a-task
-https://docs.exa.ai/reference/get-contents
-https://docs.exa.ai/websets/overview
-https://websets.exa.ai/websets?_gl=1*zer51j*_gcl_au*MTI4MzA0ODI2Ni4xNzU3MDIxNTE4*_ga*NTE3MDI5MDQwLjE3NTcwMjE1MTg.*_ga_CPMTFL65Z3*czE3NTk3MDgxMzMkbzUkZzEkdDE3NTk3MDgxMzMkajYwJGwwJGgxMTM0NzM5MDM0
 - enrich each prediction with data from x/twitter GROK search first
-- modify prediction result json to include to separate discrete prediction child elements outcomeReasoning (the reasoning for the outcome) and confidenceReasoning (the reason for the outcome)
+
+- post update to twitter - "[model] predicts .." eg https://x.com/Kalshi/status/1975612799192866873
+
+- consider whether to generate a twitter overview image for the prediction?
+
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
 - Optimize the system prompt. Pipe one AI's response to another AI
+- test adding websets enrichment
 
 
+### Benchmarking
+- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
+- Pull predictioncheck design and "open" definition from betteraiv1.
