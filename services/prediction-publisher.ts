@@ -147,11 +147,20 @@ ${JSON.stringify(result.data, null, 2)}
  * Publish prediction results to GitHub repository
  */
 export async function publishPrediction(options: PredictionPublishOptions): Promise<string> {
-  const { predictionId, experimentId } = options;
+  const { predictionId, experimentId, result } = options;
   const filename = `prediction-${predictionId}.md`;
   const repo = 'better-labs/prediction-history';
   const branch = 'main';
   const filePath = `exp${experimentId}/${filename}`;
+
+  const rawRequest = result?.data?.rawRequest;
+  const rawResponse = result?.data?.rawResponse;
+
+  if (!rawRequest || !rawResponse) {
+    throw new Error(
+      `Prediction ${predictionId} is missing raw request/response data. Aborting publish.`
+    );
+  }
 
   logger.info({ predictionId, filename, repo, filePath }, 'Publishing prediction to GitHub repository');
 
@@ -244,57 +253,26 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
       rawMarketData.eventSlug = data.eventSlug;
     }
 
-    // Determine experiment ID using stored metadata or fallbacks
-    let experimentId =
-      typeof prediction.experimentId === 'string' && prediction.experimentId.length > 0
-        ? prediction.experimentId
-        : 'unknown';
-    let experimentName = 'Unknown Experiment';
+    // Expect experiment ID to be stored on the prediction record
+    const experimentId =
+      typeof prediction.experimentId === 'string' && prediction.experimentId.trim().length > 0
+        ? prediction.experimentId.trim()
+        : null;
 
-    const predictionPayload = (prediction.prediction ?? {}) as Record<string, unknown>;
-    const rawRequestPayload = (prediction.rawRequest ?? {}) as Record<string, unknown>;
-
-    // Priority 1: explicit experiment ID stored alongside the prediction
-    if (experimentId === 'unknown') {
-      if (typeof rawRequestPayload.experimentId === 'string') {
-        experimentId = rawRequestPayload.experimentId;
-      } else if (typeof predictionPayload.experimentId === 'string') {
-        experimentId = predictionPayload.experimentId;
-      }
+    if (!experimentId) {
+      throw new Error('Experiment ID is missing on the prediction record. Please ensure predictions are saved with experimentId.');
     }
 
-    // Priority 2: derive from enrichment metadata
-    if (experimentId === 'unknown') {
-      const enrichmentMetadata = predictionPayload['enrichmentMetadata'] as { source?: string } | undefined;
-      const enrichmentSource = enrichmentMetadata?.source;
-      const rawEnrichment =
-        typeof rawRequestPayload.enrichment === 'string'
-          ? rawRequestPayload.enrichment
-          : undefined;
-
-      if (enrichmentSource === 'exa-ai' || rawEnrichment === 'exa-ai-research') {
-        experimentId = '004';
-      }
+    const metadata = getExperimentMetadata(experimentId);
+    if (!metadata) {
+      throw new Error(`Experiment ${experimentId} not found in registry. Unable to publish prediction.`);
     }
+    const experimentName = metadata.name;
 
-    // Priority 3: fall back to legacy model heuristics
-    if (experimentId === 'unknown' && typeof prediction.model === 'string') {
-      const modelName = prediction.model.toLowerCase();
-      if (modelName.includes('gpt-4o')) {
-        experimentId = '001';
-      } else if (modelName.includes('claude-sonnet-4.5')) {
-        experimentId = '003';
-      } else if (modelName.includes('claude')) {
-        experimentId = '002';
-      }
-    }
-
-    // Get experiment metadata if we found an ID
-    if (experimentId !== 'unknown') {
-      const metadata = getExperimentMetadata(experimentId);
-      if (metadata) {
-        experimentName = metadata.name;
-      }
+    if (!prediction.rawRequest || !prediction.rawResponse) {
+      throw new Error(
+        `Prediction ${dbPredictionId} is missing raw request/response payloads in the database. Cannot publish.`
+      );
     }
 
     // Construct the result object to match ExperimentRunResult
@@ -309,6 +287,10 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
         prediction: prediction.prediction,
         predictionDelta: prediction.predictionDelta,
         model: prediction.model,
+        rawRequest: prediction.rawRequest,
+        rawResponse: prediction.rawResponse,
+        promptTokens: prediction.promptTokens,
+        completionTokens: prediction.completionTokens,
       },
     };
 
