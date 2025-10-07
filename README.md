@@ -165,21 +165,11 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
-Publishing
-- Add command option to run:experiment and run:experiments-batch that publishes a summary of the prediction results and market to a gist gh gist create prediction-[predictionid].md include a link to betteraiengine https://github.com/better-labs/betteraiengine and experiment number and all inputs used.
-
-put the bulk of the code for the new option functionality under /services/prediction-publish.ts
-
-start the markdown with an overview of the AI prediction delta and any key fields from the prediction object. Then add a section that recaps the market overview
-
-towards the end, include the original raw request, response, model id, and any valuable metadata such as when the job was ran, number of tokens, etc.
-
-
-Benchmarking
+### Benchmarking
 - Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
 - Pull predictioncheck design and "open" definition from betteraiv1.
 
-Future Experiments list:
+### Future Experiments list:
 - enrich each prediction with data from Exa
 Adding basic data lookup for the market from Exa.ai using datasets
 https://docs.exa.ai/reference/research/create-a-task
@@ -188,7 +178,9 @@ https://docs.exa.ai/websets/overview
 https://websets.exa.ai/websets?_gl=1*zer51j*_gcl_au*MTI4MzA0ODI2Ni4xNzU3MDIxNTE4*_ga*NTE3MDI5MDQwLjE3NTcwMjE1MTg.*_ga_CPMTFL65Z3*czE3NTk3MDgxMzMkbzUkZzEkdDE3NTk3MDgxMzMkajYwJGwwJGgxMTM0NzM5MDM0
 - enrich each prediction with data from x/twitter GROK search first
 
-- post update to twitter
+- post update to twitter - "[model] predicts .."
+
+- consider whether to generate a twitter overview image for the prediction?
 
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction

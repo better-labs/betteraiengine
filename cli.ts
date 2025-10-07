@@ -19,7 +19,7 @@ import { Command } from 'commander';
 import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
-import { publishPredictionGist, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
+import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
 import { fetchMarketBySlug } from './services/polymarket.js';
 
 const program = new Command();
@@ -107,7 +107,7 @@ program
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-u, --url <url>', 'Polymarket market URL')
   .option('-s, --slug <slug>', 'Market slug')
-  .option('-g, --publish-gist', 'Publish prediction results to a GitHub gist')
+  .option('-g, --publish-gist', 'Publish prediction results to GitHub repository (better-labs/prediction-history)')
   .action(async (options) => {
     const marketSlug = getMarketSlug(options);
     logger.info({ experiment: options.experiment, marketSlug }, 'Starting run:experiment command');
@@ -127,9 +127,9 @@ program
           console.log(JSON.stringify(result.data, null, 2));
         }
 
-        // Publish to gist if requested
+        // Publish to repository if requested
         if (options.publishGist) {
-          console.log('\nPublishing to GitHub gist...');
+          console.log('\nPublishing to GitHub repository...');
 
           const ghAvailable = await checkGhCliAvailable();
           if (!ghAvailable) {
@@ -141,7 +141,7 @@ program
             const market = await fetchMarketBySlug(marketSlug);
             const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
 
-            const gistUrl = await publishPredictionGist({
+            const fileUrl = await publishPrediction({
               predictionId,
               experimentId: result.experimentId,
               experimentName: result.experimentName,
@@ -149,10 +149,10 @@ program
               result,
             });
 
-            console.log(`✓ Published to gist: ${gistUrl}`);
-          } catch (gistError) {
-            console.error('Failed to publish gist:', gistError instanceof Error ? gistError.message : String(gistError));
-            logger.error({ error: gistError }, 'Failed to publish gist');
+            console.log(`✓ Published to repository: ${fileUrl}`);
+          } catch (publishError) {
+            console.error('Failed to publish:', publishError instanceof Error ? publishError.message : String(publishError));
+            logger.error({ error: publishError }, 'Failed to publish to repository');
           }
         }
 
@@ -188,7 +188,7 @@ program
   .description('Run prediction experiments on multiple Polymarket markets from a JSON file')
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-j, --json <path>', 'Path to JSON file containing array of Polymarket market URLs')
-  .option('-g, --publish-gist', 'Publish prediction results to a GitHub gist for each market')
+  .option('-g, --publish-gist', 'Publish prediction results to GitHub repository for each market')
   .action(async (options) => {
     if (!options.json) {
       logger.error('--json option is required');
@@ -249,13 +249,13 @@ program
             successCount++;
             console.log(`✓ Success: ${result.marketId}`);
 
-            // Publish to gist if requested
+            // Publish to repository if requested
             if (options.publishGist) {
               try {
                 const market = await fetchMarketBySlug(marketSlug);
                 const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
 
-                const gistUrl = await publishPredictionGist({
+                const fileUrl = await publishPrediction({
                   predictionId,
                   experimentId: result.experimentId,
                   experimentName: result.experimentName,
@@ -263,11 +263,11 @@ program
                   result,
                 });
 
-                gistUrls.push(gistUrl);
-                console.log(`  ✓ Published to gist: ${gistUrl}`);
-              } catch (gistError) {
-                console.log(`  ✗ Failed to publish gist: ${gistError instanceof Error ? gistError.message : String(gistError)}`);
-                logger.error({ error: gistError }, 'Failed to publish gist');
+                gistUrls.push(fileUrl);
+                console.log(`  ✓ Published to repository: ${fileUrl}`);
+              } catch (publishError) {
+                console.log(`  ✗ Failed to publish: ${publishError instanceof Error ? publishError.message : String(publishError)}`);
+                logger.error({ error: publishError }, 'Failed to publish to repository');
               }
             }
           } else {
@@ -293,7 +293,7 @@ program
       console.log(`Failed: ${failCount}`);
 
       if (options.publishGist && gistUrls.length > 0) {
-        console.log(`\n=== PUBLISHED GISTS (${gistUrls.length}) ===`);
+        console.log(`\n=== PUBLISHED FILES (${gistUrls.length}) ===`);
         gistUrls.forEach((url, idx) => {
           console.log(`${idx + 1}. ${url}`);
         });
@@ -319,11 +319,11 @@ program
 
 /**
  * Command: publish:prediction
- * Publish an existing prediction from database to a GitHub gist
+ * Publish an existing prediction from database to GitHub repository
  */
 program
   .command('publish:prediction')
-  .description('Publish an existing prediction from database to a GitHub gist')
+  .description('Publish an existing prediction from database to GitHub repository')
   .option('-p, --prediction-id <id>', 'Prediction ID (UUID from database)')
   .action(async (options) => {
     if (!options.predictionId) {

@@ -121,3 +121,15 @@ export async function fetchTopMarkets(limit: number = 10): Promise<PolymarketMar
 
   return markets as PolymarketMarket[];
 }
+
+/**
+ * Get Polymarket URL for a market
+ * Format: https://polymarket.com/event/{eventSlug}/{marketSlug}
+ */
+export function getPolymarketUrl(market: PolymarketMarket): string {
+  if (market.eventSlug) {
+    return `https://polymarket.com/event/${market.eventSlug}/${market.slug}`;
+  }
+  // Fallback to old format if eventSlug is not available
+  return `https://polymarket.com/event/${market.slug}`;
+}
