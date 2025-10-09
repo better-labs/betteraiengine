@@ -167,18 +167,18 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ### Future Experiments list:
 
-- add optional field to published doc: modify published data output to highlight research more clearly. 
-
 - enrich each prediction with data from x/twitter GROK search first
 
 - post update to twitter - "[model] predicts .." eg https://x.com/Kalshi/status/1975612799192866873
-
-- consider whether to generate a twitter overview image for the prediction?
+  - consider whether to generate a twitter overview image for the prediction?
 
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
+  - Post update, example to twitter.
+
 - Optimize the system prompt. Pipe one AI's response to another AI
-- test adding websets enrichment
+- Test adding Valyu enrichment, compare to exa
+- Test adding websets enrichment
 
 
 ### Benchmarking

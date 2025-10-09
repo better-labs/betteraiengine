@@ -31,6 +31,7 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   const rawResponse = result.data?.rawResponse;
   const promptTokens = result.data?.promptTokens;
   const completionTokens = result.data?.completionTokens;
+  const researchContext = result.data?.researchContext;
 
   // Parse market prices (outcomePrices is a JSON string like "[\"0.0235\", \"0.9765\"]")
   let marketYesProbability = 'N/A';
@@ -67,19 +68,19 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
 
 ## AI Prediction Overview
 
+- **AI Prediction Delta:** ${deltaFormatted}
+- **Confidence:** ${confidence}
 - **Market Prediction:** [${marketYesProbability}](${polymarketUrl})
 - **AI Prediction:** ${aiProbability}
-- **AI Delta:** ${deltaFormatted}
-- **Confidence:** ${confidence}
+
+### Key Factors
+${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
 
 ### Outcome Reasoning
 ${predictionObj.outcomeReasoning || predictionObj.reasoning || 'N/A'}
 
 ### Confidence Reasoning
 ${predictionObj.confidenceReasoning || 'N/A'}
-
-### Key Factors
-${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
 
 **Data Quality:** ${predictionData.dataQuality || 'N/A'}
 **Last Updated:** ${predictionData.lastUpdated || 'N/A'}
@@ -94,6 +95,12 @@ ${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${
 - **Description:** ${market.description || 'N/A'}
 - **End Date:** ${market.endDate || 'N/A'}
 - **Status:** ${market.active ? 'Active' : 'Inactive'}${market.closed ? ' (Closed)' : ''}
+
+---
+
+## Research Data
+
+${researchContext ? researchContext : 'No research data available for this prediction.'}
 
 ---
 
@@ -291,6 +298,7 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
         rawResponse: prediction.rawResponse,
         promptTokens: prediction.promptTokens,
         completionTokens: prediction.completionTokens,
+        researchContext: prediction.researchContext,
       },
     };
 

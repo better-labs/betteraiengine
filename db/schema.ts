@@ -104,6 +104,7 @@ export const predictions = pgTable('predictions', {
   prediction: jsonb('prediction').notNull(), // Structured prediction output
   rawRequest: jsonb('raw_request'), // Raw LLM request (system + user prompts) for debugging
   rawResponse: jsonb('raw_response'), // Raw LLM response for debugging
+  researchContext: text('research_context'), // Web research context used for prediction
 
   // Model info
   model: text('model'),

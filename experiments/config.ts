@@ -61,6 +61,19 @@ export const experimentRegistry: ExperimentRegistry = {
     updatedAt: '2025-10-07',
     loader: () => import('./exp004/main.js'),
   },
+
+  '005': {
+    id: '005',
+    name: 'Enhanced Prediction Formatting',
+    description: 'Builds on exp004 with enhanced reasoning formatting for better human readability. Implements structured formatting with numbered points, paragraph breaks, and clear source citations in reasoning sections.',
+    version: '1.0.0',
+    author: 'BetterAI Team',
+    enabled: true,
+    tags: ['claude', 'sonnet-4.5', 'exa-ai', 'web-research', 'enrichment', 'structured-output', 'zod', 'delta', 'enhanced-formatting'],
+    createdAt: '2025-01-15',
+    updatedAt: '2025-01-15',
+    loader: () => import('./exp005/main.js'),
+  },
 };
 
 /**

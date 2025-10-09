@@ -127,13 +127,17 @@ export function calculatePredictionDelta(
   const predictedProbabilityDecimal = predictedProbability / 100;
 
   // Calculate delta: market price - predicted probability
-  const delta = marketPriceResult.value - predictedProbabilityDecimal;
+  const rawDelta = marketPriceResult.value - predictedProbabilityDecimal;
+  
+  // Return absolute value to always be positive
+  const delta = Math.abs(rawDelta);
 
   logger.debug(
     {
       marketPrice: marketPriceResult.value,
       predictedProbability,
       predictedProbabilityDecimal,
+      rawDelta,
       delta,
     },
     'Calculated prediction delta'
