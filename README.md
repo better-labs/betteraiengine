@@ -165,10 +165,11 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
-### Future Experiments list:
+### Benchmarking
+- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
+- Pull predictioncheck design and "open" definition from betteraiv1.
 
-- post update to twitter - "[model] predicts .." eg https://x.com/Kalshi/status/1975612799192866873
-  - consider whether to generate a twitter overview image for the prediction?
+### Future Experiments list:
 
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
@@ -179,6 +180,3 @@ pnpm dev run:experiment -e 002 -u <market-url>
 - Test adding websets enrichment
 
 
-### Benchmarking
-- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
-- Pull predictioncheck design and "open" definition from betteraiv1.

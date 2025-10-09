@@ -165,3 +165,31 @@ export function formatOutcomePrices(outcomePrices?: string): string {
   const [yesPrice, noPrice] = parseResult.value;
   return `YES: ${(yesPrice * 100).toFixed(1)}%, NO: ${(noPrice * 100).toFixed(1)}%`;
 }
+
+/**
+ * Determines if a market is open for betting
+ * @param market - Market with status and date fields (compatible with PolymarketMarket interface)
+ * @returns true if market is accepting bets, false otherwise
+ */
+export function isMarketOpenForBetting(market: {
+  closed?: boolean;
+  closedTime?: string;
+  endDate?: string;
+}): boolean {
+  const now = new Date();
+
+  // If market is explicitly marked as closed, it's not open for betting
+  if (market.closed) return false;
+
+  // If closedTime exists and is in the past, market is closed
+  if (market.closedTime) {
+    const closedTime = new Date(market.closedTime);
+    if (closedTime <= now) return false;
+  }
+
+  // Fallback to endDate if closedTime not available
+  const endDate = market.endDate ? new Date(market.endDate) : null;
+  if (endDate && endDate <= now) return false;
+
+  return true;
+}
