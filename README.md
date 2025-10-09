@@ -165,12 +165,16 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
-### Benchmarking
-- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open.
-- Pull predictioncheck design and "open" definition from betteraiv1.
+Prediction Benchmarking
+- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open. leverage new isMarketOpenForBetting() function in market-utils to determine whether market is still open. If market is closed, see if it has a prediction check entry yet. if not, ...
 
-### Future Experiments list:
+Experiments
+- Test sending one agent's output to another agent an also understand whether each are unique
 
+Data benchmarking
+- Generate a few simple tests to query existing data sources, send them all to AIs and ask AI to rate the quality, comprehensiveness and recency of the data, consider asking it to remove or filter data that is not helpful or relevant.
+
+Experiments
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
   - Post update, example to twitter.
