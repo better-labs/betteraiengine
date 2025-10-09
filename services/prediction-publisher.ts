@@ -1,18 +1,45 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../utils/logger.js';
-import { PolymarketMarket, getPolymarketUrl } from './polymarket.js';
+import { PolymarketMarket, PolymarketEvent, getPolymarketMarketUrl, getPolymarketEventUrl, fetchMarketBySlug, fetchEventBySlug } from './polymarket.js';
 import { ExperimentRunResult } from './experiment-runner.js';
 import { getPredictionById } from './prediction-storage.js';
 import { getExperimentMetadata } from '../experiments/config.js';
 
 const execAsync = promisify(exec);
 
+/**
+ * Enrich market data with event information
+ */
+async function enrichMarketWithEventData(market: PolymarketMarket): Promise<PolymarketMarket> {
+  // Fetch event data from events array
+  const events = (market as any).events;
+  if (events && Array.isArray(events) && events.length > 0) {
+    const eventSlug = events[0].slug;
+    try {
+      const event = await fetchEventBySlug(eventSlug);
+      // Attach event data to market object (using fields that match database schema)
+      (market as any).eventTitle = event.title;
+      (market as any).eventImage = event.image;
+      (market as any).eventIcon = event.icon;
+      (market as any).eventSlug = eventSlug; // Also set eventSlug for consistency
+      logger.info({ eventSlug, eventTitle: event.title, hasImage: !!event.image, hasIcon: !!event.icon }, 'Enriched market with event data');
+    } catch (eventError) {
+      logger.warn({ eventSlug, error: eventError }, 'Failed to fetch event data');
+    }
+  } else {
+    logger.info('No events array found on market');
+  }
+
+  return market;
+}
+
 export interface PredictionPublishOptions {
   predictionId: string;
   experimentId: string;
   experimentName: string;
-  market: PolymarketMarket;
+  market?: PolymarketMarket;
+  marketSlug?: string;
   result: ExperimentRunResult;
 }
 
@@ -61,21 +88,30 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
     ? `${predictionObj.confidence}%`
     : 'N/A';
 
-  // Get Polymarket URL
-  const polymarketUrl = getPolymarketUrl(market);
+  // Get Polymarket URLs
+  const polymarketUrl = getPolymarketMarketUrl(market);
+  const eventUrl = market.eventSlug ? getPolymarketEventUrl(market.eventSlug) : polymarketUrl;
 
   // Get market or event image for display
   const marketImage = market.image || market.icon;
   const eventImage = (market as any).eventImage || (market as any).eventIcon;
+  const eventName = (market as any).eventTitle || 'Unknown Event';
 
-  const markdown = `${marketImage ? `![Market Image](${marketImage})\n\n` : eventImage ? `![Event Image](${eventImage})\n\n` : ''}# ${market.question}
+  const markdown = `**Event:** [${eventName}](${eventUrl})
+${eventImage ? `![Event Icon](${eventImage})` : ''}
+
+**Market:** [${market.question}](${polymarketUrl})
+${marketImage ? `![Market Icon](${marketImage})` : ''}
+
+# ${market.question}
+
+## **AI Prediction Delta: ${deltaFormatted}**
 
 ## AI Prediction Overview
 
-- **AI Prediction Delta:** ${deltaFormatted}
-- **Confidence:** ${confidence}
-- **Market Prediction:** [${marketYesProbability}](${polymarketUrl})
+- **Market Prediction:** ${marketYesProbability}
 - **AI Prediction:** ${aiProbability}
+- **Confidence:** ${confidence}
 
 ### Key Factors
 ${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
@@ -99,12 +135,6 @@ ${predictionObj.confidenceReasoning || 'N/A'}
 - **Description:** ${market.description || 'N/A'}
 - **End Date:** ${market.endDate || 'N/A'}
 - **Status:** ${market.active ? 'Active' : 'Inactive'}${market.closed ? ' (Closed)' : ''}
-
----
-
-## Research Data
-
-${researchContext ? researchContext : 'No research data available for this prediction.'}
 
 ---
 
@@ -146,6 +176,12 @@ ${JSON.stringify(result.data, null, 2)}
 
 ---
 
+## Research Data
+
+${researchContext ? researchContext : 'No research data available for this prediction.'}
+
+---
+
 *Generated with [BetterAI Engine](https://github.com/better-labs/betteraiengine) | [Experiment ${experimentId}](https://github.com/better-labs/prediction-history/tree/main/exp${experimentId}) | ${model || 'N/A'}*
 
 **Disclaimer:** All content is for informational and educational purposes only and is not financial advice. You are solely responsible for your own decisions.
@@ -158,7 +194,14 @@ ${JSON.stringify(result.data, null, 2)}
  * Publish prediction results to GitHub repository
  */
 export async function publishPrediction(options: PredictionPublishOptions): Promise<string> {
-  const { predictionId, experimentId, result } = options;
+  const { predictionId, experimentId, result, marketSlug } = options;
+  let { market } = options;
+
+  // Validate that either market or marketSlug is provided
+  if (!market && !marketSlug) {
+    throw new Error('Either market or marketSlug must be provided');
+  }
+
   const filename = `prediction-${predictionId}.md`;
   const repo = 'better-labs/prediction-history';
   const branch = 'main';
@@ -176,8 +219,21 @@ export async function publishPrediction(options: PredictionPublishOptions): Prom
   logger.info({ predictionId, filename, repo, filePath }, 'Publishing prediction to GitHub repository');
 
   try {
+    // Fetch and enrich market data if marketSlug was provided
+    if (marketSlug) {
+      logger.info({ marketSlug }, 'Fetching market data by slug');
+      market = await fetchMarketBySlug(marketSlug);
+      market = await enrichMarketWithEventData(market);
+    } else if (market) {
+      // Enrich existing market data with event information
+      market = await enrichMarketWithEventData(market);
+    }
+
     // Generate markdown content
-    const markdown = formatPredictionMarkdown(options);
+    const markdown = formatPredictionMarkdown({
+      ...options,
+      market: market!,
+    });
 
     // Write to temporary file
     const fs = await import('fs/promises');
@@ -201,7 +257,7 @@ export async function publishPrediction(options: PredictionPublishOptions): Prom
 
     // Create or update file using GitHub API
     const apiPayload = {
-      message: `Add prediction ${predictionId} - ${options.market.question}`,
+      message: `Add prediction ${predictionId} - ${market!.question}`,
       content,
       branch,
       ...(sha && { sha }), // Include SHA if updating existing file

@@ -20,7 +20,6 @@ import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
 import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
-import { fetchMarketBySlug } from './services/polymarket.js';
 
 const program = new Command();
 
@@ -138,14 +137,13 @@ program
           }
 
           try {
-            const market = await fetchMarketBySlug(marketSlug);
             const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
 
             const fileUrl = await publishPrediction({
               predictionId,
               experimentId: result.experimentId,
               experimentName: result.experimentName,
-              market,
+              marketSlug,
               result,
             });
 
@@ -252,14 +250,13 @@ program
             // Publish to repository if requested
             if (options.publishGist) {
               try {
-                const market = await fetchMarketBySlug(marketSlug);
                 const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
 
                 const fileUrl = await publishPrediction({
                   predictionId,
                   experimentId: result.experimentId,
                   experimentName: result.experimentName,
-                  market,
+                  marketSlug,
                   result,
                 });
 

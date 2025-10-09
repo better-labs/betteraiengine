@@ -319,6 +319,21 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
         prediction: predictionData,
         predictionDelta,
         model: 'anthropic/claude-sonnet-4.5',
+        rawRequest: {
+          experimentId: '005',
+          messages: messages.map(msg => ({
+            role: msg._getType(),
+            content: msg.content,
+          })),
+          model: 'anthropic/claude-sonnet-4.5',
+          temperature: 0.7,
+          enrichment: 'exa-ai-research',
+          formatting: 'enhanced-structured',
+        },
+        rawResponse: response,
+        promptTokens: response.response_metadata?.tokenUsage?.promptTokens,
+        completionTokens: response.response_metadata?.tokenUsage?.completionTokens,
+        researchContext,
         enrichment: {
           source: 'exa-ai',
           numSources: researchResult.data?.contents.length || 0,
