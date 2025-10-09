@@ -50,6 +50,8 @@ export const events = pgTable('events', {
   endDate: timestamp('end_date'),
   active: boolean('active').default(true),
   closed: boolean('closed').default(false),
+  icon: text('icon'), // Event icon URL
+  image: text('image'), // Event image URL
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -71,6 +73,10 @@ export const markets = pgTable('markets', {
   // Market metrics (can be updated on each fetch)
   volume: text('volume'), // Using text for big numbers
   liquidity: text('liquidity'),
+
+  // Market images
+  icon: text('icon'), // Market icon URL
+  image: text('image'), // Market image URL
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -104,6 +110,7 @@ export const predictions = pgTable('predictions', {
   prediction: jsonb('prediction').notNull(), // Structured prediction output
   rawRequest: jsonb('raw_request'), // Raw LLM request (system + user prompts) for debugging
   rawResponse: jsonb('raw_response'), // Raw LLM response for debugging
+  researchContext: text('research_context'), // Web research context used for prediction
 
   // Model info
   model: text('model'),

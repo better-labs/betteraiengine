@@ -69,6 +69,8 @@ export async function saveEvent(eventData: PolymarketEvent) {
       endDate: eventData.endDate ? new Date(eventData.endDate) : null,
       active: eventData.active ?? true,
       closed: eventData.closed ?? false,
+      icon: eventData.icon || null,
+      image: eventData.image || null,
     })
     .onConflictDoUpdate({
       target: events.eventId,
@@ -80,6 +82,8 @@ export async function saveEvent(eventData: PolymarketEvent) {
         endDate: eventData.endDate ? new Date(eventData.endDate) : null,
         active: eventData.active ?? true,
         closed: eventData.closed ?? false,
+        icon: eventData.icon || null,
+        image: eventData.image || null,
         updatedAt: new Date(),
       },
     })
@@ -106,6 +110,8 @@ export async function saveMarket(marketData: PolymarketMarket) {
       closed: marketData.closed ?? false,
       volume: marketData.volume || null,
       liquidity: marketData.liquidity || null,
+      icon: marketData.icon || null,
+      image: marketData.image || null,
     })
     .onConflictDoUpdate({
       target: markets.marketId,
@@ -118,6 +124,8 @@ export async function saveMarket(marketData: PolymarketMarket) {
         closed: marketData.closed ?? false,
         volume: marketData.volume || null,
         liquidity: marketData.liquidity || null,
+        icon: marketData.icon || null,
+        image: marketData.image || null,
         updatedAt: new Date(),
       },
     })

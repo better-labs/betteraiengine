@@ -20,7 +20,6 @@ import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
 import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
-import { fetchMarketBySlug } from './services/polymarket.js';
 
 const program = new Command();
 
@@ -36,12 +35,18 @@ function getMarketSlug(options: { url?: string; slug?: string }): string {
     if (eventUrlMatch) {
       slug = eventUrlMatch[1];
     } else {
-      // Handle market URL format: /market/{market-slug}
-      const marketUrlMatch = options.url.match(/polymarket\.com\/market\/([^/?]+)/);
-      if (marketUrlMatch) {
-        slug = marketUrlMatch[1];
+      // Handle single-market event: /event/{event-slug}
+      const singleMarketMatch = options.url.match(/polymarket\.com\/event\/([^/?]+)/);
+      if (singleMarketMatch) {
+        slug = singleMarketMatch[1];
       } else {
-        slug = options.url;
+        // Handle market URL format: /market/{market-slug}
+        const marketUrlMatch = options.url.match(/polymarket\.com\/market\/([^/?]+)/);
+        if (marketUrlMatch) {
+          slug = marketUrlMatch[1];
+        } else {
+          slug = options.url;
+        }
       }
     }
   }
@@ -107,7 +112,7 @@ program
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-u, --url <url>', 'Polymarket market URL')
   .option('-s, --slug <slug>', 'Market slug')
-  .option('-g, --publish-gist', 'Publish prediction results to GitHub repository (better-labs/prediction-history)')
+  .option('-p, --publish', 'Publish prediction results to GitHub repository (better-labs/prediction-history)')
   .action(async (options) => {
     const marketSlug = getMarketSlug(options);
     logger.info({ experiment: options.experiment, marketSlug }, 'Starting run:experiment command');
@@ -128,7 +133,7 @@ program
         }
 
         // Publish to repository if requested
-        if (options.publishGist) {
+        if (options.publish) {
           console.log('\nPublishing to GitHub repository...');
 
           const ghAvailable = await checkGhCliAvailable();
@@ -138,14 +143,13 @@ program
           }
 
           try {
-            const market = await fetchMarketBySlug(marketSlug);
             const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
 
             const fileUrl = await publishPrediction({
               predictionId,
               experimentId: result.experimentId,
               experimentName: result.experimentName,
-              market,
+              marketId: result.marketId,
               result,
             });
 
@@ -188,7 +192,7 @@ program
   .description('Run prediction experiments on multiple Polymarket markets from a JSON file')
   .option('-e, --experiment <number>', 'Experiment number (e.g., 001, 002)', '001')
   .option('-j, --json <path>', 'Path to JSON file containing array of Polymarket market URLs')
-  .option('-g, --publish-gist', 'Publish prediction results to GitHub repository for each market')
+  .option('-p, --publish', 'Publish prediction results to GitHub repository for each market')
   .action(async (options) => {
     if (!options.json) {
       logger.error('--json option is required');
@@ -210,8 +214,8 @@ program
       console.log(`Experiment: ${options.experiment}`);
       console.log(`Total markets: ${urls.length}\n`);
 
-      // Check gh CLI availability if gist publishing is requested
-      if (options.publishGist) {
+      // Check gh CLI availability if publishing is requested
+      if (options.publish) {
         const ghAvailable = await checkGhCliAvailable();
         if (!ghAvailable) {
           console.error('Error: gh CLI is not available. Please install it from https://cli.github.com/');
@@ -250,16 +254,15 @@ program
             console.log(`✓ Success: ${result.marketId}`);
 
             // Publish to repository if requested
-            if (options.publishGist) {
+            if (options.publish) {
               try {
-                const market = await fetchMarketBySlug(marketSlug);
                 const predictionId = result.data?.predictionId || `${result.experimentId}-${result.marketId}`;
 
                 const fileUrl = await publishPrediction({
                   predictionId,
                   experimentId: result.experimentId,
                   experimentName: result.experimentName,
-                  market,
+                  marketId: result.marketId,
                   result,
                 });
 
@@ -292,7 +295,7 @@ program
       console.log(`Success: ${successCount}`);
       console.log(`Failed: ${failCount}`);
 
-      if (options.publishGist && gistUrls.length > 0) {
+      if (options.publish && gistUrls.length > 0) {
         console.log(`\n=== PUBLISHED FILES (${gistUrls.length}) ===`);
         gistUrls.forEach((url, idx) => {
           console.log(`${idx + 1}. ${url}`);

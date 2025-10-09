@@ -11,6 +11,8 @@ export interface PolymarketEvent {
   endDate?: string;
   active?: boolean;
   closed?: boolean;
+  icon?: string;
+  image?: string;
   [key: string]: unknown;
 }
 
@@ -27,6 +29,8 @@ export interface PolymarketMarket {
   liquidity?: string;
   outcomes?: string;
   outcomePrices?: string;
+  icon?: string;
+  image?: string;
   [key: string]: unknown;
 }
 
@@ -123,10 +127,18 @@ export async function fetchTopMarkets(limit: number = 10): Promise<PolymarketMar
 }
 
 /**
+ * Get Polymarket URL for an event
+ * Format: https://polymarket.com/event/{eventSlug}
+ */
+export function getPolymarketEventUrl(eventSlug: string): string {
+  return `https://polymarket.com/event/${eventSlug}`;
+}
+
+/**
  * Get Polymarket URL for a market
  * Format: https://polymarket.com/event/{eventSlug}/{marketSlug}
  */
-export function getPolymarketUrl(market: PolymarketMarket): string {
+export function getPolymarketMarketUrl(market: PolymarketMarket): string {
   if (market.eventSlug) {
     return `https://polymarket.com/event/${market.eventSlug}/${market.slug}`;
   }
