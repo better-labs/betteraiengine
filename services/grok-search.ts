@@ -81,7 +81,7 @@ Return up to ${maxResults} high-quality results formatted as a JSON array. Each 
 Respond ONLY with a valid JSON array, no additional text or markdown formatting.`,
           },
         ],
-        model: 'x-ai/grok-2-1212',
+        model: 'x-ai/grok-3-mini',
         temperature: 0.3,
       }),
     });
@@ -98,7 +98,7 @@ Respond ONLY with a valid JSON array, no additional text or markdown formatting.
       };
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {

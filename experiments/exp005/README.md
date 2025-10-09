@@ -121,30 +121,60 @@ Based on comprehensive analysis of polling data and political dynamics, Newsom's
 
 ## Technical Specifications
 
-### Files Modified
-- [experiments/exp005/main.ts](main.ts) - Complete implementation with enhanced prompting
+### Files Created/Modified
+- [experiments/exp005/main.ts](main.ts) - Complete implementation with dual-source research and direct API calls
+- [services/grok-search.ts](../../services/grok-search.ts) - New Grok AI search service
+- [services/exa-research.ts](../../services/exa-research.ts) - Updated character limits (200K → 25K)
 
 ### Key Differences from exp004
 
 | Aspect | exp004 | exp005 |
 |--------|--------|--------|
+| Research Sources | Exa AI only | Exa AI + Grok AI (parallel) |
+| API Client | LangChain wrapper | Direct fetch calls |
+| Character Budget | 200K (Exa) | 25K (Exa) + 25K (Grok) = 50K total |
+| Research Fetching | Sequential | Parallel (Promise.all) |
 | System Prompt | Basic guidelines | Explicit formatting requirements section |
-| Context Prompt | Simple field descriptions | Detailed formatting instructions with examples |
-| Schema Descriptions | Generic | Mentions "structured formatting" |
-| Metadata | Enrichment only | Enrichment + formatting flags |
-| Raw Request | `enrichment: 'exa-ai-research'` | `enrichment: 'exa-ai-research'`, `formatting: 'enhanced-structured'` |
+| Context Prompt | Simple field descriptions | Detailed formatting instructions |
+| Metadata | Enrichment only | Enrichment + formatting + dual-source tracking |
+| Raw Request | `enrichment: 'exa-ai-research'` | `enrichment: 'exa-ai-and-grok-research'`, `formatting: 'enhanced-structured'` |
 
 ### Dependencies
-- No new dependencies required
-- Changes are backward compatible
-- All exp004 functionality preserved (Exa AI research, web enrichment, etc.)
+- **Removed**: `@langchain/openai`, `@langchain/core` (no longer needed)
+- **New**: Uses native `fetch` for all API calls
+- **Required Environment Variables**:
+  - `OPENROUTER_API_KEY` - For Claude and Grok API access
+  - `EXA_API_KEY` - For Exa AI research
 
 ## Expected Outcomes
 
-The enhanced formatting requirements should result in:
-1. More readable reasoning sections with clear paragraph structure
-2. Easier identification of key arguments through numbered enumeration
-3. Better source attribution and citation clarity
-4. Improved logical flow in reasoning presentation
-5. Maintained prediction accuracy and data quality from exp004
+The dual-source research and enhanced formatting should result in:
+
+### Information Quality
+1. **Broader coverage** - Two complementary research sources provide more diverse perspectives
+2. **Real-time data** - Grok's web access ensures latest news and developments are included
+3. **Better redundancy** - If one API fails, predictions can still use the other source
+4. **Richer context** - Combined 50K character budget provides substantial research depth
+
+### Performance Improvements
+5. **Faster research** - Parallel fetching reduces total latency vs sequential calls
+6. **Reduced overhead** - Removing LangChain eliminates wrapper overhead
+7. **Clearer debugging** - Direct API calls are easier to trace and debug
+
+### Output Quality
+8. **More readable reasoning** - Clear paragraph structure with numbered enumeration
+9. **Better source attribution** - Citations from both Exa and Grok research
+10. **Improved logical flow** - Structured formatting makes arguments easier to follow
+11. **Maintained accuracy** - All exp004 prediction quality preserved with added benefits
+
+## Usage
+
+```bash
+# Ensure environment variables are set
+export OPENROUTER_API_KEY="your-key"
+export EXA_API_KEY="your-key"
+
+# Run prediction for a specific market
+pnpm dev predict:market <market-id-or-slug>
+```
 
