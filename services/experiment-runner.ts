@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger.js';
-import { fetchMarketBySlug } from './polymarket.js';
-import { ingestMarket } from './polymarket-storage.js';
+import { fetchMarketBySlug, fetchEventBySlug } from './polymarket.js';
+import { ingestMarket, ingestEvent } from './polymarket-storage.js';
 import { experimentRegistry, getExperimentMetadata, isExperimentAvailable } from '../experiments/config.js';
 import { ExperimentModule } from '../experiments/types.js';
 
@@ -94,6 +94,23 @@ export async function runExperiment(options: ExperimentOptions): Promise<Experim
     // Fetch and ingest market
     const market = await fetchMarketBySlug(options.marketSlug);
     await ingestMarket(market);
+
+    // Fetch and ingest event data if available
+    const events = (market as any).events;
+    if (events && Array.isArray(events) && events.length > 0) {
+      const eventSlug = events[0].slug;
+      try {
+        const event = await fetchEventBySlug(eventSlug);
+        await ingestEvent(event);
+        // Attach event ID to market for database relationship (eventSlug field stores the event ID)
+        market.eventSlug = event.id;
+        // Re-save market with event_id relationship
+        await ingestMarket(market);
+        logger.info({ eventSlug, eventId: event.id, eventTitle: event.title }, 'Event data fetched and ingested, market updated with event relationship');
+      } catch (eventError) {
+        logger.warn({ eventSlug, error: eventError }, 'Failed to fetch and ingest event data');
+      }
+    }
 
     // Load and run the experiment
     const experimentModule = await loadExperiment(expNum);

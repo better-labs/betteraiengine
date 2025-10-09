@@ -1,37 +1,77 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../utils/logger.js';
-import { PolymarketMarket, PolymarketEvent, getPolymarketMarketUrl, getPolymarketEventUrl, fetchMarketBySlug, fetchEventBySlug } from './polymarket.js';
+import { PolymarketMarket, PolymarketEvent, getPolymarketMarketUrl, getPolymarketEventUrl } from './polymarket.js';
 import { ExperimentRunResult } from './experiment-runner.js';
 import { getPredictionById } from './prediction-storage.js';
 import { getExperimentMetadata } from '../experiments/config.js';
+import { db, rawMarkets, rawEvents, markets, events } from '../db/index.js';
+import { eq } from 'drizzle-orm';
 
 const execAsync = promisify(exec);
 
 /**
- * Enrich market data with event information
+ * Get market and event data from database by market ID
  */
-async function enrichMarketWithEventData(market: PolymarketMarket): Promise<PolymarketMarket> {
-  // Fetch event data from events array
-  const events = (market as any).events;
-  if (events && Array.isArray(events) && events.length > 0) {
-    const eventSlug = events[0].slug;
-    try {
-      const event = await fetchEventBySlug(eventSlug);
-      // Attach event data to market object (using fields that match database schema)
-      (market as any).eventTitle = event.title;
-      (market as any).eventImage = event.image;
-      (market as any).eventIcon = event.icon;
-      (market as any).eventSlug = eventSlug; // Also set eventSlug for consistency
-      logger.info({ eventSlug, eventTitle: event.title, hasImage: !!event.image, hasIcon: !!event.icon }, 'Enriched market with event data');
-    } catch (eventError) {
-      logger.warn({ eventSlug, error: eventError }, 'Failed to fetch event data');
-    }
-  } else {
-    logger.info('No events array found on market');
-  }
+async function getMarketAndEventFromDatabase(marketId: string): Promise<{
+  market: PolymarketMarket;
+  event: PolymarketEvent | null;
+} | null> {
+  try {
+    const result = await db
+      .select({
+        rawMarket: rawMarkets,
+        market: markets,
+        rawEvent: rawEvents,
+        event: events,
+      })
+      .from(rawMarkets)
+      .leftJoin(markets, eq(rawMarkets.marketId, markets.marketId))
+      .leftJoin(events, eq(markets.eventId, events.eventId))
+      .leftJoin(rawEvents, eq(events.eventId, rawEvents.eventId))
+      .where(eq(rawMarkets.marketId, marketId))
+      .limit(1);
 
-  return market;
+    if (result.length === 0) {
+      logger.warn({ marketId }, 'Market not found in database');
+      return null;
+    }
+
+    const rawMarketData = result[0].rawMarket.data as PolymarketMarket;
+    const structuredMarket = result[0].market;
+
+    // Merge structured market data into raw market data
+    if (structuredMarket) {
+      rawMarketData.icon = structuredMarket.icon || rawMarketData.icon;
+      rawMarketData.image = structuredMarket.image || rawMarketData.image;
+    }
+
+    // Get event data if available
+    let eventData: PolymarketEvent | null = null;
+    if (result[0].rawEvent?.data) {
+      eventData = result[0].rawEvent.data as PolymarketEvent;
+      const structuredEvent = result[0].event;
+
+      // Merge structured event data into raw event data
+      if (structuredEvent) {
+        eventData.title = structuredEvent.title || eventData.title;
+        eventData.icon = structuredEvent.icon || eventData.icon;
+        eventData.image = structuredEvent.image || eventData.image;
+      }
+
+      logger.info({ marketId, eventId: eventData.id, eventTitle: eventData.title }, 'Successfully fetched market and event from database');
+    } else {
+      logger.info({ marketId }, 'Successfully fetched market from database (no event)');
+    }
+
+    return {
+      market: rawMarketData,
+      event: eventData,
+    };
+  } catch (error) {
+    logger.error({ marketId, error }, 'Failed to fetch market and event from database');
+    throw error;
+  }
 }
 
 export interface PredictionPublishOptions {
@@ -39,7 +79,8 @@ export interface PredictionPublishOptions {
   experimentId: string;
   experimentName: string;
   market?: PolymarketMarket;
-  marketSlug?: string;
+  event?: PolymarketEvent | null;
+  marketId?: string;
   result: ExperimentRunResult;
 }
 
@@ -47,7 +88,7 @@ export interface PredictionPublishOptions {
  * Format the prediction result as markdown
  */
 function formatPredictionMarkdown(options: PredictionPublishOptions): string {
-  const { predictionId, experimentId, experimentName, market, result } = options;
+  const { predictionId, experimentId, experimentName, market, event, result } = options;
 
   // Extract prediction data
   const predictionData = result.data?.prediction || {};
@@ -63,7 +104,7 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   // Parse market prices (outcomePrices is a JSON string like "[\"0.0235\", \"0.9765\"]")
   let marketYesProbability = 'N/A';
   try {
-    if (market.outcomePrices) {
+    if (market?.outcomePrices) {
       const prices = JSON.parse(market.outcomePrices);
       if (Array.isArray(prices) && prices.length > 0) {
         marketYesProbability = `${(parseFloat(prices[0]) * 100).toFixed(2)}%`;
@@ -89,21 +130,21 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
     : 'N/A';
 
   // Get Polymarket URLs
-  const polymarketUrl = getPolymarketMarketUrl(market);
-  const eventUrl = market.eventSlug ? getPolymarketEventUrl(market.eventSlug) : polymarketUrl;
+  const polymarketUrl = market ? getPolymarketMarketUrl(market) : '#';
+  const eventUrl = event?.slug ? getPolymarketEventUrl(event.slug) : polymarketUrl;
 
   // Get market or event image for display
-  const marketImage = market.image || market.icon;
-  const eventImage = (market as any).eventImage || (market as any).eventIcon;
-  const eventName = (market as any).eventTitle || 'Unknown Event';
+  const marketImage = market?.image || market?.icon;
+  const eventImage = event?.image || event?.icon;
+  const eventName = event?.title || 'Unknown Event';
 
-  const markdown = `**Event:** [${eventName}](${eventUrl})
+  const markdown = `# Event: [${eventName}](${eventUrl})
 ${eventImage ? `![Event Icon](${eventImage})` : ''}
 
-**Market:** [${market.question}](${polymarketUrl})
+**Market:** [${market?.question || 'Unknown Market'}](${polymarketUrl})
 ${marketImage ? `![Market Icon](${marketImage})` : ''}
 
-# ${market.question}
+# ${market?.question || 'Unknown Market'}
 
 ## **AI Prediction Delta: ${deltaFormatted}**
 
@@ -129,12 +170,12 @@ ${predictionObj.confidenceReasoning || 'N/A'}
 
 ## Market Overview
 
-- **Question:** ${market.question}
+- **Question:** ${market?.question || 'N/A'}
 - **Market:** [View on Polymarket](${polymarketUrl})
-- **Market ID:** ${market.id}
-- **Description:** ${market.description || 'N/A'}
-- **End Date:** ${market.endDate || 'N/A'}
-- **Status:** ${market.active ? 'Active' : 'Inactive'}${market.closed ? ' (Closed)' : ''}
+- **Market ID:** ${market?.id || 'N/A'}
+- **Description:** ${market?.description || 'N/A'}
+- **End Date:** ${market?.endDate || 'N/A'}
+- **Status:** ${market?.active ? 'Active' : 'Inactive'}${market?.closed ? ' (Closed)' : ''}
 
 ---
 
@@ -194,12 +235,12 @@ ${researchContext ? researchContext : 'No research data available for this predi
  * Publish prediction results to GitHub repository
  */
 export async function publishPrediction(options: PredictionPublishOptions): Promise<string> {
-  const { predictionId, experimentId, result, marketSlug } = options;
+  const { predictionId, experimentId, result, marketId } = options;
   let { market } = options;
 
-  // Validate that either market or marketSlug is provided
-  if (!market && !marketSlug) {
-    throw new Error('Either market or marketSlug must be provided');
+  // Validate that either market or marketId is provided
+  if (!market && !marketId) {
+    throw new Error('Either market or marketId must be provided');
   }
 
   const filename = `prediction-${predictionId}.md`;
@@ -219,20 +260,24 @@ export async function publishPrediction(options: PredictionPublishOptions): Prom
   logger.info({ predictionId, filename, repo, filePath }, 'Publishing prediction to GitHub repository');
 
   try {
-    // Fetch and enrich market data if marketSlug was provided
-    if (marketSlug) {
-      logger.info({ marketSlug }, 'Fetching market data by slug');
-      market = await fetchMarketBySlug(marketSlug);
-      market = await enrichMarketWithEventData(market);
-    } else if (market) {
-      // Enrich existing market data with event information
-      market = await enrichMarketWithEventData(market);
+    let event: PolymarketEvent | null = null;
+
+    // Fetch market and event data from database if marketId was provided
+    if (marketId) {
+      logger.info({ marketId }, 'Fetching market and event data from database');
+      const data = await getMarketAndEventFromDatabase(marketId);
+      if (!data) {
+        throw new Error(`Market ${marketId} not found in database`);
+      }
+      market = data.market;
+      event = data.event;
     }
 
     // Generate markdown content
     const markdown = formatPredictionMarkdown({
       ...options,
       market: market!,
+      event,
     });
 
     // Write to temporary file
@@ -304,28 +349,15 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
   logger.info({ dbPredictionId }, 'Publishing existing prediction to repository');
 
   try {
-    // Fetch prediction and market data from database
+    // Fetch prediction from database
     const data = await getPredictionById(dbPredictionId);
 
-    if (!data.prediction || !data.rawMarket) {
-      throw new Error('Prediction or market data not found in database');
+    if (!data.prediction) {
+      throw new Error('Prediction not found in database');
     }
 
-    // Extract data from database records
+    // Extract prediction data
     const prediction = data.prediction;
-    const rawMarketData = data.rawMarket.data as PolymarketMarket;
-    const structuredMarket = data.market;
-
-    // Add event slug to market data if available
-    if (data.eventSlug) {
-      rawMarketData.eventSlug = data.eventSlug;
-    }
-
-    // Add image data from structured market if available
-    if (structuredMarket) {
-      rawMarketData.icon = structuredMarket.icon || rawMarketData.icon;
-      rawMarketData.image = structuredMarket.image || rawMarketData.image;
-    }
 
     // Expect experiment ID to be stored on the prediction record
     const experimentId =
@@ -349,15 +381,21 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
       );
     }
 
+    // Get market ID
+    const marketId = prediction.marketId;
+    if (!marketId) {
+      throw new Error(`Prediction ${dbPredictionId} has no associated market ID`);
+    }
+
     // Construct the result object to match ExperimentRunResult
     const result: ExperimentRunResult = {
       success: true,
       experimentId,
       experimentName,
-      marketId: prediction.marketId || rawMarketData.id,
+      marketId,
       data: {
         experimentId,
-        marketId: prediction.marketId || rawMarketData.id,
+        marketId,
         prediction: prediction.prediction,
         predictionDelta: prediction.predictionDelta,
         model: prediction.model,
@@ -372,12 +410,12 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
     // Use the DB prediction ID for the filename
     const filePredictionId = dbPredictionId;
 
-    // Publish to repository using existing function
+    // Publish to repository using existing function (will fetch market and event from DB)
     const fileUrl = await publishPrediction({
       predictionId: filePredictionId,
       experimentId,
       experimentName,
-      market: rawMarketData,
+      marketId,
       result,
     });
 
