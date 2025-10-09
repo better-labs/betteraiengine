@@ -140,18 +140,18 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
 
   const markdown = `
   
-  # AI Prediction Delta: ${deltaFormatted}
-  ${eventImage ? `![Event Icon](${eventImage})` : ''}
-  Event: [${eventName}](${eventUrl})
-  Market: [${market?.question || 'Unknown Market'}](${polymarketUrl})
+  # AI Prediction Delta: ${deltaFormatted}  
+  ${eventImage ? `![Event Icon](${eventImage})` : ''}  
+ - Event: [${eventName}](${eventUrl})  
+- Market: [${market?.question || 'Unknown Market'}](${polymarketUrl})  
 
 
 ## AI Prediction Overview
 
-- **Market Prediction:** ${marketYesProbability}
-- **AI Prediction:** ${aiProbability}
-- **Confidence:** ${confidence}
-- **AI Prediction Delta:** ${deltaFormatted}
+- Market Prediction: ${marketYesProbability}
+- AI Prediction: ${aiProbability}
+- Confidence: ${confidence}
+- AI Prediction Delta: ${deltaFormatted}
 
 ### Key Factors
 ${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
@@ -162,39 +162,39 @@ ${predictionObj.outcomeReasoning || predictionObj.reasoning || 'N/A'}
 ### Confidence Reasoning
 ${predictionObj.confidenceReasoning || 'N/A'}
 
-**Data Quality:** ${predictionData.dataQuality || 'N/A'}
-**Last Updated:** ${predictionData.lastUpdated || 'N/A'}
+Data Quality: ${predictionData.dataQuality || 'N/A'}
+
 
 ---
 
 ## Market Overview
 
-- **Question:** ${market?.question || 'N/A'}
-- **Market:** [View on Polymarket](${polymarketUrl})
-- **Market ID:** ${market?.id || 'N/A'}
-- **Description:** ${market?.description || 'N/A'}
-- **End Date:** ${market?.endDate || 'N/A'}
-- **Status:** ${market?.active ? 'Active' : 'Inactive'}${market?.closed ? ' (Closed)' : ''}
+- Question: ${market?.question || 'N/A'}
+- Market: [View on Polymarket](${polymarketUrl})
+- Market ID: ${market?.id || 'N/A'}
+- Description: ${market?.description || 'N/A'}
+- End Date: ${market?.endDate || 'N/A'}
+- Status: ${market?.active ? 'Active' : 'Inactive'}${market?.closed ? ' (Closed)' : ''}
 
 ---
 
 ## Experiment Details
 
-- **Experiment ID:** ${experimentId}
-- **Experiment Name:** ${experimentName}
-- **Model:** ${model || 'N/A'}
-- **Prediction ID:** \`${predictionId}\`
-- **Status:** ${result.success ? '✓ Success' : '✗ Failed'}
-${result.error ? `- **Error:** ${result.error}` : ''}
+- Experiment ID: ${experimentId}
+- Experiment Name: ${experimentName}
+- Model: ${model || 'N/A'}
+- Prediction ID: \`${predictionId}\`
+- Status: ${result.success ? '✓ Success' : '✗ Failed'}
+${result.error ? `- Error: ${result.error}` : ''}
 
 ---
 
 ## Technical Metadata
 
 ### Token Usage
-- **Prompt Tokens:** ${promptTokens || 'N/A'}
-- **Completion Tokens:** ${completionTokens || 'N/A'}
-- **Total Tokens:** ${(promptTokens && completionTokens) ? (promptTokens + completionTokens) : 'N/A'}
+- Prompt Tokens: ${promptTokens || 'N/A'}
+- Completion Tokens: ${completionTokens || 'N/A'}
+- Total Tokens: ${(promptTokens && completionTokens) ? (promptTokens + completionTokens) : 'N/A'}
 
 ### Raw Request
 \`\`\`json

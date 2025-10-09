@@ -167,7 +167,7 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ### Future Experiments list:
 
-- enrich each prediction with data from x/twitter GROK search first
+- **enrich each prediction with data from x/twitter GROK search first**
 
 - post update to twitter - "[model] predicts .." eg https://x.com/Kalshi/status/1975612799192866873
   - consider whether to generate a twitter overview image for the prediction?

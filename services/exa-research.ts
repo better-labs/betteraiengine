@@ -74,7 +74,7 @@ interface ExaSearchResponse {
 }
 
 const EXA_API_BASE = 'https://api.exa.ai';
-const MAX_CHARACTERS = 200000; // ~50k tokens limit
+const MAX_CHARACTERS = 25000; // Half of total 50K budget, sharing with Grok
 const STRING_FALLBACK_KEYS = ['text', 'summary', 'content', 'snippet', 'value'];
 
 function extractString(value: unknown): string | undefined {

@@ -1,6 +1,4 @@
 import { logger } from '../../utils/logger.js';
-import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { PolymarketMarket } from '../../services/polymarket.js';
 import { savePrediction, saveFailedPrediction } from '../../services/prediction-storage.js';
@@ -12,6 +10,10 @@ import {
   performExaResearch,
   formatExaResearchContext,
 } from '../../services/exa-research.js';
+import {
+  performGrokSearch,
+  formatGrokSearchContext,
+} from '../../services/grok-search.js';
 
 export interface ExperimentResult {
   success: boolean;
@@ -141,77 +143,95 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
   try {
     logger.info({ experimentId: '005', marketId: market.id }, 'Starting experiment 005 with enhanced formatting');
 
-    // Step 1: Perform web research using Exa AI
-    logger.info({ experimentId: '005', marketId: market.id, question: market.question }, 'Fetching web research data from Exa AI');
+    // Step 1: Perform parallel web research using Exa AI and Grok
+    logger.info({ experimentId: '005', marketId: market.id, question: market.question }, 'Fetching web research data from Exa AI and Grok');
 
-    const researchResult = await performExaResearch({
-      query: market.question,
-      numResults: 8,
-      useAutoprompt: true,
-      type: 'neural',
-      contents: {
-        text: { maxCharacters: 2000 },
-        highlights: { numSentences: 3, highlightsPerUrl: 3 },
-        summary: true,
-      },
-    });
+    const [exaResult, grokResult] = await Promise.all([
+      performExaResearch({
+        query: market.question,
+        numResults: 10,
+        useAutoprompt: true,
+        type: 'neural',
+        contents: {
+          text: { maxCharacters: 1500 },
+          highlights: { numSentences: 3, highlightsPerUrl: 3 },
+          summary: true,
+        },
+      }),
+      performGrokSearch({
+        query: market.question,
+        maxResults: 10,
+      }),
+    ]);
 
-    if (!researchResult.success) {
-      logger.error(
-        { experimentId: '005', marketId: market.id, error: researchResult.error },
-        'Exa AI research failed - proceeding without enrichment'
-      );
-      // Continue with empty research context rather than failing completely
-    }
+    // Format research contexts
+    const exaContext = exaResult.success && exaResult.data
+      ? formatExaResearchContext(exaResult.data.contents)
+      : '';
 
-    const researchContext = researchResult.success && researchResult.data
-      ? formatExaResearchContext(researchResult.data.contents)
-      : 'No additional research data available due to API error.';
+    const grokContext = grokResult.success && grokResult.data
+      ? formatGrokSearchContext(grokResult.data.results)
+      : '';
+
+    // Merge research contexts
+    const researchParts: string[] = [];
+    if (exaContext) researchParts.push(exaContext);
+    if (grokContext) researchParts.push(grokContext);
+
+    const researchContext = researchParts.length > 0
+      ? researchParts.join('\n\n---\n\n')
+      : 'No additional research data available due to API errors.';
 
     logger.info(
       {
         experimentId: '005',
         marketId: market.id,
-        researchSuccess: researchResult.success,
-        numSources: researchResult.data?.contents.length || 0,
-        totalCharacters: researchResult.data?.totalCharacters || 0,
+        exaSuccess: exaResult.success,
+        grokSuccess: grokResult.success,
+        exaSources: exaResult.data?.contents.length || 0,
+        grokSources: grokResult.data?.results.length || 0,
+        exaCharacters: exaResult.data?.totalCharacters || 0,
+        grokCharacters: grokResult.data?.totalCharacters || 0,
       },
-      'Web research data prepared'
+      'Web research data prepared from multiple sources'
     );
 
-    // Step 2: Initialize LangChain with OpenRouter (Claude Sonnet 4.5)
-    const model = new ChatOpenAI({
-      model: 'anthropic/claude-sonnet-4.5',
-      temperature: 0.7,
-      apiKey: process.env.OPENROUTER_API_KEY,
-      configuration: {
-        baseURL: 'https://openrouter.ai/api/v1',
-        defaultHeaders: {
-          'HTTP-Referer': 'https://betterai.tools',
-          'X-Title': 'BetterAI Engine',
-        },
-      },
-    });
-
-    // Build prompts with enriched research context and enhanced formatting requirements
+    // Step 2: Call OpenRouter API directly with Claude Sonnet 4.5
     const systemPrompt = buildSystemPrompt();
     const contextPrompt = buildContextPrompt(market, researchContext);
 
-    // Prepare messages
-    const messages = [
-      new SystemMessage(systemPrompt),
-      new HumanMessage(contextPrompt),
-    ];
-
     logger.info({ experimentId: '005', marketId: market.id }, 'Invoking AI model with enhanced formatting requirements');
 
-    // Invoke the model
-    const response = await model.invoke(messages);
+    const apiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://betterai.tools',
+        'X-Title': 'BetterAI Engine',
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-sonnet-4.5',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: contextPrompt },
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`OpenRouter API error: ${apiResponse.status} - ${errorText}`);
+    }
+
+    const response: any = await apiResponse.json();
+    const messageContent = response.choices?.[0]?.message?.content || '';
 
     // Parse the response - extract JSON and validate with Zod
     let predictionData: PredictionOutput;
     try {
-      let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      let content = messageContent;
 
       // Remove markdown code blocks if present
       const jsonMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
@@ -231,7 +251,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
           experimentId: '005',
           marketId: market.id,
           error: parseErrorMessage,
-          responseContent: response.content,
+          responseContent: messageContent,
         },
         'Failed to parse or validate prediction response'
       );
@@ -286,29 +306,33 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
       prediction: {
         ...predictionData,
         enrichmentMetadata: {
-          exaResearchSuccess: researchResult.success,
-          numSources: researchResult.data?.contents.length || 0,
-          totalCharacters: researchResult.data?.totalCharacters || 0,
-          truncated: researchResult.data?.truncated || false,
+          exaResearchSuccess: exaResult.success,
+          grokResearchSuccess: grokResult.success,
+          exaSources: exaResult.data?.contents.length || 0,
+          grokSources: grokResult.data?.results.length || 0,
+          exaCharacters: exaResult.data?.totalCharacters || 0,
+          grokCharacters: grokResult.data?.totalCharacters || 0,
+          exaTruncated: exaResult.data?.truncated || false,
+          grokTruncated: grokResult.data?.truncated || false,
           enhancedFormatting: true,
         },
       },
       rawRequest: {
         experimentId: '005',
-        messages: messages.map(msg => ({
-          role: msg._getType(),
-          content: msg.content,
-        })),
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: contextPrompt },
+        ],
         model: 'anthropic/claude-sonnet-4.5',
         temperature: 0.7,
-        enrichment: 'exa-ai-research',
+        enrichment: 'exa-ai-and-grok-research',
         formatting: 'enhanced-structured',
       },
       rawResponse: response,
       model: 'anthropic/claude-sonnet-4.5',
       predictionDelta,
-      promptTokens: response.response_metadata?.tokenUsage?.promptTokens,
-      completionTokens: response.response_metadata?.tokenUsage?.completionTokens,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
       researchContext,
     });
 
@@ -321,23 +345,25 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
         model: 'anthropic/claude-sonnet-4.5',
         rawRequest: {
           experimentId: '005',
-          messages: messages.map(msg => ({
-            role: msg._getType(),
-            content: msg.content,
-          })),
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: contextPrompt },
+          ],
           model: 'anthropic/claude-sonnet-4.5',
           temperature: 0.7,
-          enrichment: 'exa-ai-research',
+          enrichment: 'exa-ai-and-grok-research',
           formatting: 'enhanced-structured',
         },
         rawResponse: response,
-        promptTokens: response.response_metadata?.tokenUsage?.promptTokens,
-        completionTokens: response.response_metadata?.tokenUsage?.completionTokens,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
         researchContext,
         enrichment: {
-          source: 'exa-ai',
-          numSources: researchResult.data?.contents.length || 0,
-          totalCharacters: researchResult.data?.totalCharacters || 0,
+          sources: ['exa-ai', 'grok-ai'],
+          exaSources: exaResult.data?.contents.length || 0,
+          grokSources: grokResult.data?.results.length || 0,
+          exaCharacters: exaResult.data?.totalCharacters || 0,
+          grokCharacters: grokResult.data?.totalCharacters || 0,
         },
         formatting: 'enhanced-structured',
       },
