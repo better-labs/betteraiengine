@@ -138,21 +138,20 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   const eventImage = event?.image || event?.icon;
   const eventName = event?.title || 'Unknown Event';
 
-  const markdown = `# Event: [${eventName}](${eventUrl})
-${eventImage ? `![Event Icon](${eventImage})` : ''}
+  const markdown = `
+  
+  # AI Prediction Delta: ${deltaFormatted}
+  ${eventImage ? `![Event Icon](${eventImage})` : ''}
+  Event: [${eventName}](${eventUrl})
+  Market: [${market?.question || 'Unknown Market'}](${polymarketUrl})
 
-**Market:** [${market?.question || 'Unknown Market'}](${polymarketUrl})
-${marketImage ? `![Market Icon](${marketImage})` : ''}
-
-# ${market?.question || 'Unknown Market'}
-
-## **AI Prediction Delta: ${deltaFormatted}**
 
 ## AI Prediction Overview
 
 - **Market Prediction:** ${marketYesProbability}
 - **AI Prediction:** ${aiProbability}
 - **Confidence:** ${confidence}
+- **AI Prediction Delta:** ${deltaFormatted}
 
 ### Key Factors
 ${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
