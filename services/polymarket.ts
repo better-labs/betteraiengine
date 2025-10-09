@@ -11,6 +11,8 @@ export interface PolymarketEvent {
   endDate?: string;
   active?: boolean;
   closed?: boolean;
+  icon?: string;
+  image?: string;
   [key: string]: unknown;
 }
 
@@ -27,6 +29,8 @@ export interface PolymarketMarket {
   liquidity?: string;
   outcomes?: string;
   outcomePrices?: string;
+  icon?: string;
+  image?: string;
   [key: string]: unknown;
 }
 

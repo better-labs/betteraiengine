@@ -51,9 +51,9 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
     ? `${predictionObj.probability}%`
     : 'N/A';
 
-  // Format delta with sign
+  // Format delta without sign
   const deltaFormatted = predictionDelta !== undefined
-    ? `${predictionDelta >= 0 ? '+' : ''}${(predictionDelta * 100).toFixed(2)}%`
+    ? `${Math.abs(predictionDelta * 100).toFixed(2)}%`
     : 'N/A';
 
   // Get confidence
@@ -64,7 +64,11 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   // Get Polymarket URL
   const polymarketUrl = getPolymarketUrl(market);
 
-  const markdown = `# ${market.question}
+  // Get market or event image for display
+  const marketImage = market.image || market.icon;
+  const eventImage = (market as any).eventImage || (market as any).eventIcon;
+
+  const markdown = `${marketImage ? `![Market Image](${marketImage})\n\n` : eventImage ? `![Event Image](${eventImage})\n\n` : ''}# ${market.question}
 
 ## AI Prediction Overview
 
@@ -254,10 +258,17 @@ export async function publishExistingPrediction(dbPredictionId: string): Promise
     // Extract data from database records
     const prediction = data.prediction;
     const rawMarketData = data.rawMarket.data as PolymarketMarket;
+    const structuredMarket = data.market;
 
     // Add event slug to market data if available
     if (data.eventSlug) {
       rawMarketData.eventSlug = data.eventSlug;
+    }
+
+    // Add image data from structured market if available
+    if (structuredMarket) {
+      rawMarketData.icon = structuredMarket.icon || rawMarketData.icon;
+      rawMarketData.image = structuredMarket.image || rawMarketData.image;
     }
 
     // Expect experiment ID to be stored on the prediction record
