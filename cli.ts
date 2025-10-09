@@ -35,12 +35,18 @@ function getMarketSlug(options: { url?: string; slug?: string }): string {
     if (eventUrlMatch) {
       slug = eventUrlMatch[1];
     } else {
-      // Handle market URL format: /market/{market-slug}
-      const marketUrlMatch = options.url.match(/polymarket\.com\/market\/([^/?]+)/);
-      if (marketUrlMatch) {
-        slug = marketUrlMatch[1];
+      // Handle single-market event: /event/{event-slug}
+      const singleMarketMatch = options.url.match(/polymarket\.com\/event\/([^/?]+)/);
+      if (singleMarketMatch) {
+        slug = singleMarketMatch[1];
       } else {
-        slug = options.url;
+        // Handle market URL format: /market/{market-slug}
+        const marketUrlMatch = options.url.match(/polymarket\.com\/market\/([^/?]+)/);
+        if (marketUrlMatch) {
+          slug = marketUrlMatch[1];
+        } else {
+          slug = options.url;
+        }
       }
     }
   }

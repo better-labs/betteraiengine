@@ -29,6 +29,12 @@ export interface ExaResearchOptions {
   numResults?: number;
   useAutoprompt?: boolean;
   type?: 'neural' | 'keyword';
+  market?: {
+    question: string;
+    description?: string;
+    closeTime?: string;
+    eventTitle?: string;
+  };
   contents?: {
     text?: boolean | { maxCharacters?: number };
     highlights?: boolean | { numSentences?: number; highlightsPerUrl?: number };
@@ -75,6 +81,8 @@ interface ExaSearchResponse {
 
 const EXA_API_BASE = 'https://api.exa.ai';
 const MAX_CHARACTERS = 25000; // Half of total 50K budget, sharing with Grok
+const DEFAULT_NUM_RESULTS = 8; // Default number of search results to return
+const DEFAULT_TEXT_MAX_CHARS = 1000; // Max characters per result text content
 const STRING_FALLBACK_KEYS = ['text', 'summary', 'content', 'snippet', 'value'];
 
 function extractString(value: unknown): string | undefined {
@@ -153,26 +161,52 @@ export async function performExaResearch(options: ExaResearchOptions): Promise<E
   try {
     const {
       query,
-      numResults = 8,
+      numResults = DEFAULT_NUM_RESULTS,
       useAutoprompt = true,
       type = 'neural',
+      market,
       contents: contentsConfig = {
-        text: { maxCharacters: 2000 },
+        text: { maxCharacters: DEFAULT_TEXT_MAX_CHARS },
         highlights: { numSentences: 3, highlightsPerUrl: 3 },
         summary: true,
       },
     } = options;
 
-    logger.info({ query, numResults, type }, 'Starting Exa AI research');
+    logger.info({ query, numResults, type, hasMarketContext: !!market }, 'Starting Exa AI research');
 
-    // Build the search request with contents
-    const searchPayload = {
-      query,
+    // Build enhanced query with market context for better autoprompt results
+    let enhancedQuery = query;
+    if (market && useAutoprompt) {
+      enhancedQuery = `${query}`;
+      if (market.eventTitle) {
+        enhancedQuery += ` (${market.eventTitle})`;
+      }
+      if (market.description) {
+        // Add key resolution criteria keywords to improve search relevance
+        enhancedQuery += `. Resolution: ${market.description.substring(0, 200)}`;
+      }
+    }
+
+    // Build the search request with contents and optional date filtering
+    const searchPayload: any = {
+      query: enhancedQuery,
       numResults,
       useAutoprompt,
       type,
       contents: contentsConfig,
+      // Exclude Polymarket to avoid circular references (searching for external information)
+      excludeDomains: ['polymarket.com'],
     };
+
+    // Add date filtering if market has closeTime
+    if (market?.closeTime) {
+      const closeDate = new Date(market.closeTime);
+      if (!isNaN(closeDate.getTime())) {
+        // Search for content published before market close time
+        searchPayload.endPublishedDate = closeDate.toISOString();
+        logger.info({ endPublishedDate: searchPayload.endPublishedDate }, 'Using date filter for Exa search');
+      }
+    }
 
     // Call Exa Search API with contents parameter
     const response = await fetch(`${EXA_API_BASE}/search`, {

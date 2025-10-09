@@ -174,7 +174,6 @@ The dual-source research and enhanced formatting should result in:
 export OPENROUTER_API_KEY="your-key"
 export EXA_API_KEY="your-key"
 
-# Run prediction for a specific market
-pnpm dev predict:market <market-id-or-slug>
+
 ```
 

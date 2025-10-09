@@ -10,32 +10,6 @@ import { ExperimentRegistry } from './types.js';
  * 4. Set enabled: true when ready to use
  */
 export const experimentRegistry: ExperimentRegistry = {
-  '001': {
-    id: '001',
-    name: 'Baseline OpenRouter Prediction',
-    description: 'Baseline prediction experiment using OpenRouter (GPT-4) via LangChain. Sends market question and description to the model for analysis.',
-    version: '1.0.0',
-    author: 'BetterAI Team',
-    enabled: true,
-    tags: ['baseline', 'openrouter', 'gpt-4', 'langchain'],
-    createdAt: '2025-10-05',
-    updatedAt: '2025-10-05',
-    loader: () => import('./exp001/main.js'),
-  },
-
-  '002': {
-    id: '002',
-    name: 'Claude Sonnet 4.5 Structured Output',
-    description: 'Enhanced prediction using Claude Sonnet 4.5 via OpenRouter with structured JSON output (Zod schema). Includes prediction delta calculation.',
-    version: '1.0.0',
-    author: 'BetterAI Team',
-    enabled: true,
-    tags: ['claude', 'sonnet-4.5', 'structured-output', 'zod', 'delta'],
-    createdAt: '2025-10-07',
-    updatedAt: '2025-10-07',
-    loader: () => import('./exp002/main.js'),
-  },
-
   '003': {
     id: '003',
     name: 'Claude Sonnet 4.5 Separated Reasoning',
@@ -64,14 +38,14 @@ export const experimentRegistry: ExperimentRegistry = {
 
   '005': {
     id: '005',
-    name: 'Enhanced Prediction Formatting',
-    description: 'Builds on exp004 with enhanced reasoning formatting for better human readability. Implements structured formatting with numbered points, paragraph breaks, and clear source citations in reasoning sections.',
-    version: '1.0.0',
+    name: 'Dual-Source Research with Enhanced Formatting',
+    description: 'Dual-source web research (Exa AI + Grok AI) with enhanced formatting. Removes LangChain for direct API calls, implements parallel research fetching, and passes market context for improved search accuracy.',
+    version: '2.0.0',
     author: 'BetterAI Team',
     enabled: true,
-    tags: ['claude', 'sonnet-4.5', 'exa-ai', 'web-research', 'enrichment', 'structured-output', 'zod', 'delta', 'enhanced-formatting'],
+    tags: ['claude', 'sonnet-4.5', 'exa-ai', 'grok-ai', 'dual-source', 'web-research', 'enrichment', 'structured-output', 'zod', 'delta', 'enhanced-formatting', 'no-langchain'],
     createdAt: '2025-01-15',
-    updatedAt: '2025-01-15',
+    updatedAt: '2025-06-17',
     loader: () => import('./exp005/main.js'),
   },
 };

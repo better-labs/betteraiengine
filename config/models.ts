@@ -7,6 +7,7 @@ export const MODEL_IDS = {
   ANTHROPIC_CLAUDE_SONNET_4_5: 'anthropic/claude-sonnet-4.5',
   XAI_GROK_4: 'x-ai/grok-4',
   OPENAI_GPT_5_PRO: 'openai/gpt-5-pro',
+  OPENAI_GPT_5: 'openai/gpt-5',
 } as const;
 
 /**

@@ -141,7 +141,7 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   const markdown = `
   
   # AI Prediction Delta: ${deltaFormatted}  
-  ${eventImage ? `![Event Icon](${eventImage})` : ''}  
+  ${eventImage ? `<img src="${eventImage}" alt="Event Icon" width="100">` : ''}
  - Event: [${eventName}](${eventUrl})  
 - Market: [${market?.question || 'Unknown Market'}](${polymarketUrl})  
 
@@ -216,7 +216,7 @@ ${JSON.stringify(result.data, null, 2)}
 
 ---
 
-## Research Data
+# Research Data
 
 ${researchContext ? researchContext : 'No research data available for this prediction.'}
 

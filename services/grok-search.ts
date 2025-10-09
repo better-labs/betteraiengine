@@ -16,6 +16,12 @@ export interface GrokSearchResult {
 export interface GrokSearchOptions {
   query: string;
   maxResults?: number;
+  market?: {
+    question: string;
+    description?: string;
+    closeTime?: string;
+    eventTitle?: string;
+  };
 }
 
 export interface GrokSearchResponse {
@@ -29,6 +35,7 @@ export interface GrokSearchResponse {
 }
 
 const MAX_CHARACTERS = 25000; // Half of total 50K budget, sharing with Exa
+const DEFAULT_NUM_RESULTS = 10; // Default number of search results to return
 
 /**
  * Perform web search using Grok via OpenRouter
@@ -45,9 +52,48 @@ export async function performGrokSearch(options: GrokSearchOptions): Promise<Gro
   }
 
   try {
-    const { query, maxResults = 10 } = options;
+    const { query, maxResults = DEFAULT_NUM_RESULTS, market } = options;
 
-    logger.info({ query, maxResults }, 'Starting Grok web search via OpenRouter');
+    logger.info({ query, maxResults, hasMarketContext: !!market }, 'Starting Grok web search via OpenRouter');
+
+    // Build enhanced search prompt with market context
+    let searchPrompt = `Perform a comprehensive web search to find the latest information about: "${query}"`;
+
+    if (market) {
+      searchPrompt += `\n\n## Market Context\n`;
+      searchPrompt += `**Primary Question:** ${market.question}\n`;
+
+      if (market.eventTitle) {
+        searchPrompt += `**Event:** ${market.eventTitle}\n`;
+      }
+
+      if (market.description) {
+        searchPrompt += `**Resolution Criteria:** ${market.description}\n`;
+      }
+
+      if (market.closeTime) {
+        searchPrompt += `**Market Close Time:** ${market.closeTime}\n`;
+        searchPrompt += `**Note:** Focus on information relevant to predictions before ${market.closeTime}\n`;
+      }
+
+      searchPrompt += `\nPlease search for information that specifically helps answer the market question and meets the resolution criteria.`;
+    }
+
+    searchPrompt += `\n\nSearch for the most recent, relevant information including:
+- Latest news and developments
+- Current data and statistics
+- Expert opinions and analysis
+- Recent discussions and trends
+- Official announcements or statements
+
+Return up to ${maxResults} high-quality results formatted as a JSON array. Each result must include:
+- url: The source URL
+- title: Headline or title
+- snippet: Brief excerpt or summary (2-3 sentences)
+- publishedDate: Date if available (ISO format preferred)
+- source: Publication or website name
+
+Respond ONLY with a valid JSON array, no additional text or markdown formatting.`;
 
     // Call OpenRouter with Grok model for web search with real-time data
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -62,23 +108,7 @@ export async function performGrokSearch(options: GrokSearchOptions): Promise<Gro
         messages: [
           {
             role: 'user',
-            content: `Perform a comprehensive web search to find the latest information about: "${query}"
-
-Search for the most recent, relevant information including:
-- Latest news and developments
-- Current data and statistics
-- Expert opinions and analysis
-- Recent discussions and trends
-- Official announcements or statements
-
-Return up to ${maxResults} high-quality results formatted as a JSON array. Each result must include:
-- url: The source URL
-- title: Headline or title
-- snippet: Brief excerpt or summary (2-3 sentences)
-- publishedDate: Date if available (ISO format preferred)
-- source: Publication or website name
-
-Respond ONLY with a valid JSON array, no additional text or markdown formatting.`,
+            content: searchPrompt,
           },
         ],
         model: 'x-ai/grok-3-mini',

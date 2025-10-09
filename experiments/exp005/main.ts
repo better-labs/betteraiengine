@@ -14,6 +14,7 @@ import {
   performGrokSearch,
   formatGrokSearchContext,
 } from '../../services/grok-search.js';
+import { MODEL_IDS } from '../../config/models.js';
 
 export interface ExperimentResult {
   success: boolean;
@@ -146,12 +147,22 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
     // Step 1: Perform parallel web research using Exa AI and Grok
     logger.info({ experimentId: '005', marketId: market.id, question: market.question }, 'Fetching web research data from Exa AI and Grok');
 
+    // Build market context for enhanced research
+    const events = market.events as any[] | undefined;
+    const marketContext = {
+      question: market.question,
+      description: market.description,
+      closeTime: market.endDate ? String(market.endDate) : undefined,
+      eventTitle: events?.[0]?.title || market.groupItemTitle,
+    };
+
     const [exaResult, grokResult] = await Promise.all([
       performExaResearch({
         query: market.question,
         numResults: 10,
         useAutoprompt: true,
         type: 'neural',
+        market: marketContext,
         contents: {
           text: { maxCharacters: 1500 },
           highlights: { numSentences: 3, highlightsPerUrl: 3 },
@@ -161,6 +172,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
       performGrokSearch({
         query: market.question,
         maxResults: 10,
+        market: marketContext,
       }),
     ]);
 
@@ -196,7 +208,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
       'Web research data prepared from multiple sources'
     );
 
-    // Step 2: Call OpenRouter API directly with Claude Sonnet 4.5
+    // Step 2: Call OpenRouter API directly with the chosen model
     const systemPrompt = buildSystemPrompt();
     const contextPrompt = buildContextPrompt(market, researchContext);
 
@@ -211,7 +223,7 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
         'X-Title': 'BetterAI Engine',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-sonnet-4.5',
+        model: MODEL_IDS.OPENAI_GPT_5,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: contextPrompt },
@@ -323,13 +335,13 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: contextPrompt },
         ],
-        model: 'anthropic/claude-sonnet-4.5',
+        model: MODEL_IDS.OPENAI_GPT_5,
         temperature: 0.7,
         enrichment: 'exa-ai-and-grok-research',
         formatting: 'enhanced-structured',
       },
       rawResponse: response,
-      model: 'anthropic/claude-sonnet-4.5',
+      model: MODEL_IDS.OPENAI_GPT_5,
       predictionDelta,
       promptTokens: response.usage?.prompt_tokens,
       completionTokens: response.usage?.completion_tokens,
@@ -342,14 +354,14 @@ export async function run(market: PolymarketMarket): Promise<ExperimentResult> {
         marketId: market.id,
         prediction: predictionData,
         predictionDelta,
-        model: 'anthropic/claude-sonnet-4.5',
+        model: MODEL_IDS.OPENAI_GPT_5,
         rawRequest: {
           experimentId: '005',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: contextPrompt },
           ],
-          model: 'anthropic/claude-sonnet-4.5',
+          model: MODEL_IDS.OPENAI_GPT_5,
           temperature: 0.7,
           enrichment: 'exa-ai-and-grok-research',
           formatting: 'enhanced-structured',
