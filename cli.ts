@@ -20,6 +20,7 @@ import { logger } from './utils/logger.js';
 import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
 import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
+import { generateTrade } from './services/trade-generator.js';
 
 const program = new Command();
 
@@ -359,6 +360,86 @@ program
           predictionId: options.predictionId,
         },
         'Failed to publish prediction'
+      );
+      console.error('\nError:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Command: generate:trade
+ * Generate a trade plan from an existing prediction
+ */
+program
+  .command('generate:trade')
+  .description('Generate a trade plan from an existing prediction')
+  .option('-p, --prediction-id <id>', 'Prediction ID (UUID from database)')
+  .option('-s, --strategy <name>', 'Trading strategy to use', 'takeProfit')
+  .option('-d, --min-delta <percent>', 'Minimum delta percentage threshold', '2.5')
+  .action(async (options) => {
+    if (!options.predictionId) {
+      logger.error('--prediction-id option is required');
+      console.error('Error: --prediction-id option is required');
+      process.exit(1);
+    }
+
+    try {
+      const minDelta = parseFloat(options.minDelta);
+      if (isNaN(minDelta)) {
+        console.error('Error: --min-delta must be a valid number');
+        process.exit(1);
+      }
+
+      console.log(`\n=== GENERATING TRADE PLAN ===`);
+      console.log(`Prediction ID: ${options.predictionId}`);
+      console.log(`Strategy: ${options.strategy}`);
+      console.log(`Min Delta: ${minDelta}%\n`);
+
+      const result = await generateTrade({
+        predictionId: options.predictionId,
+        strategyName: options.strategy,
+        minDeltaPercent: minDelta,
+      });
+
+      if (result.success && result.tradePlan) {
+        console.log('=== TRADE PLAN GENERATED ===\n');
+        console.log(JSON.stringify(result.tradePlan, null, 2));
+
+        if (result.metadata) {
+          console.log('\n=== METADATA ===');
+          console.log(`Market ID: ${result.metadata.marketId}`);
+          console.log(`Outcome: ${result.metadata.outcome}`);
+          console.log(`AI Prediction: ${result.metadata.predictionProbability}%`);
+          console.log(`Current Market Price: ${(result.metadata.currentMarketPrice * 100).toFixed(2)}%`);
+          console.log(`Delta: ${result.metadata.delta.toFixed(2)}%`);
+          console.log(`Confidence: ${result.metadata.confidence}%`);
+          console.log(`Strategy: ${result.metadata.strategyUsed}`);
+        }
+
+        console.log('\n============================\n');
+        process.exit(0);
+      } else {
+        console.log('=== TRADE GENERATION FAILED ===');
+        console.log(`Error: ${result.error}`);
+
+        if (result.metadata) {
+          console.log('\nDiagnostic Info:');
+          console.log(`Market ID: ${result.metadata.marketId}`);
+          console.log(`AI Prediction: ${result.metadata.predictionProbability}%`);
+          console.log(`Current Market Price: ${(result.metadata.currentMarketPrice * 100).toFixed(2)}%`);
+          console.log(`Delta: ${result.metadata.delta.toFixed(2)}%`);
+        }
+
+        console.log('================================\n');
+        process.exit(1);
+      }
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          predictionId: options.predictionId,
+        },
+        'Failed to generate trade'
       );
       console.error('\nError:', error instanceof Error ? error.message : String(error));
       process.exit(1);

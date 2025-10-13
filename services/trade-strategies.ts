@@ -27,12 +27,18 @@ export interface StrategyOutput {
 /**
  * Take Profit Strategy
  *
- * Executes two orders:
- * 1. Market BUY at current price (immediate entry)
- * 2. Limit SELL at AI prediction target (take profit)
+ * Handles both underpriced and overpriced scenarios:
  *
- * This strategy captures the full predicted edge immediately and sets
- * a profit target at the AI's predicted price level.
+ * UNDERPRICED (Market < AI Prediction):
+ * - Buy the predicted outcome at market price
+ * - Sell at HALFWAY point between market and AI prediction (conservative profit target)
+ *
+ * OVERPRICED (Market > AI Prediction):
+ * - Buy the OPPOSITE outcome at market price
+ * - Sell at HALFWAY point toward inverse AI target (conservative profit target)
+ *
+ * This strategy captures immediate market entry and sets a conservative profit
+ * target at 50% of the predicted edge, increasing likelihood of order execution.
  */
 export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
   const { predictionProbability, currentMarketPrice, confidence, outcome } = input;
@@ -53,34 +59,95 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
   // For paper trading, use fixed size of 1 USDC
   const tradeSize = 1;
 
-  // Determine if we're buying YES or NO based on prediction
-  const buyOutcome = outcome;
+  // Determine the market price for the predicted outcome
+  // If outcome is YES, marketPrice is for YES
+  // If outcome is NO, we need to calculate based on YES price
+  const outcomeMarketPrice = outcome === 'YES' ? currentMarketPrice : (1 - currentMarketPrice);
 
-  const trades = [
-    {
-      outcome: buyOutcome,
-      side: 'BUY' as const,
-      orderType: 'MARKET' as const,
-      size: tradeSize,
-      notes: `Entry at market price ${currentMarketPrice.toFixed(3)} based on AI prediction ${predictionPrice.toFixed(3)} (confidence: ${confidence}%)`,
-    },
-    {
-      outcome: buyOutcome,
-      side: 'SELL' as const,
-      orderType: 'LIMIT' as const,
-      size: tradeSize,
-      price: predictionPrice,
-      notes: `Take profit at AI prediction target ${predictionPrice.toFixed(3)}`,
-    },
-  ];
+  // Determine if market is underpriced or overpriced relative to prediction
+  const isUnderpriced = outcomeMarketPrice < predictionPrice;
+  const isOverpriced = outcomeMarketPrice > predictionPrice;
 
-  const reasoning = `Take profit strategy: Buy ${buyOutcome} at market (${currentMarketPrice.toFixed(3)}), sell at AI target (${predictionPrice.toFixed(3)}). Expected edge: ${((predictionPrice - currentMarketPrice) * 100).toFixed(1)}%`;
+  let buyOutcome: 'YES' | 'NO';
+  let targetPrice: number;
+  let reasoning: string;
 
-  return {
-    trades,
-    strategyName: 'takeProfit',
-    reasoning,
-  };
+  if (isUnderpriced) {
+    // UNDERPRICED: Buy the predicted outcome
+    buyOutcome = outcome;
+
+    // Calculate halfway point between market and AI prediction
+    const halfwayDistance = (predictionPrice - outcomeMarketPrice) / 2;
+    targetPrice = outcomeMarketPrice + halfwayDistance;
+
+    const trades = [
+      {
+        outcome: buyOutcome,
+        side: 'BUY' as const,
+        orderType: 'MARKET' as const,
+        size: tradeSize,
+        notes: `Entry: Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)} (underpriced vs AI prediction ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
+      },
+      {
+        outcome: buyOutcome,
+        side: 'SELL' as const,
+        orderType: 'LIMIT' as const,
+        size: tradeSize,
+        price: targetPrice,
+        notes: `Take profit: Sell ${buyOutcome} at halfway target ${targetPrice.toFixed(3)} (50% toward AI prediction ${predictionPrice.toFixed(3)})`,
+      },
+    ];
+
+    reasoning = `Take profit (underpriced): Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)}, sell at halfway point ${targetPrice.toFixed(3)} (50% toward AI target ${predictionPrice.toFixed(3)}). Expected edge: ${((targetPrice - outcomeMarketPrice) * 100).toFixed(1)}%`;
+
+    return {
+      trades,
+      strategyName: 'takeProfit',
+      reasoning,
+    };
+  } else if (isOverpriced) {
+    // OVERPRICED: Buy the OPPOSITE outcome
+    buyOutcome = outcome === 'YES' ? 'NO' : 'YES';
+
+    // Current price of opposite outcome
+    const oppositeMarketPrice = 1 - outcomeMarketPrice;
+
+    // Full AI target for opposite outcome (inverse of prediction)
+    const fullTargetPrice = 1 - predictionPrice;
+
+    // Calculate halfway point between opposite market price and AI target
+    const halfwayDistance = (fullTargetPrice - oppositeMarketPrice) / 2;
+    targetPrice = oppositeMarketPrice + halfwayDistance;
+
+    const trades = [
+      {
+        outcome: buyOutcome,
+        side: 'BUY' as const,
+        orderType: 'MARKET' as const,
+        size: tradeSize,
+        notes: `Entry: Buy ${buyOutcome} at market ${oppositeMarketPrice.toFixed(3)} (AI predicts ${outcome} overpriced at ${outcomeMarketPrice.toFixed(3)} vs ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
+      },
+      {
+        outcome: buyOutcome,
+        side: 'SELL' as const,
+        orderType: 'LIMIT' as const,
+        size: tradeSize,
+        price: targetPrice,
+        notes: `Take profit: Sell ${buyOutcome} at halfway target ${targetPrice.toFixed(3)} (50% toward inverse AI target ${fullTargetPrice.toFixed(3)})`,
+      },
+    ];
+
+    reasoning = `Take profit (overpriced): AI predicts ${outcome} at ${predictionPrice.toFixed(3)} but market is ${outcomeMarketPrice.toFixed(3)}. Buy opposite outcome ${buyOutcome} at ${oppositeMarketPrice.toFixed(3)}, sell at halfway point ${targetPrice.toFixed(3)} (50% toward AI target ${fullTargetPrice.toFixed(3)}). Expected edge: ${((targetPrice - oppositeMarketPrice) * 100).toFixed(1)}%`;
+
+    return {
+      trades,
+      strategyName: 'takeProfit',
+      reasoning,
+    };
+  } else {
+    // Should not happen if validation passed, but handle edge case
+    throw new Error('Market price equals prediction price - no trade opportunity');
+  }
 }
 
 /**
@@ -105,6 +172,12 @@ export function calculateTradeStrategy(
 
 /**
  * Validate that the trade meets minimum requirements
+ *
+ * Now accepts both underpriced and overpriced scenarios:
+ * - Underpriced: Market < Prediction (buy predicted outcome)
+ * - Overpriced: Market > Prediction (buy opposite outcome)
+ *
+ * Only requirement is that delta exceeds minimum threshold.
  */
 export function validateTradeOpportunity(input: StrategyInput, minDeltaPercent: number = 2.5): {
   valid: boolean;
@@ -115,8 +188,11 @@ export function validateTradeOpportunity(input: StrategyInput, minDeltaPercent: 
 
   const predictionPrice = predictionProbability / 100;
 
-  // Calculate delta (difference between prediction and market)
-  const delta = Math.abs(predictionPrice - currentMarketPrice) * 100;
+  // Determine the market price for the predicted outcome
+  const outcomeMarketPrice = outcome === 'YES' ? currentMarketPrice : (1 - currentMarketPrice);
+
+  // Calculate delta (difference between prediction and market for the predicted outcome)
+  const delta = Math.abs(predictionPrice - outcomeMarketPrice) * 100;
 
   // Check if delta meets minimum threshold
   if (delta < minDeltaPercent) {
@@ -127,20 +203,8 @@ export function validateTradeOpportunity(input: StrategyInput, minDeltaPercent: 
     };
   }
 
-  // For YES outcomes, prediction should be higher than market
-  // For NO outcomes, we're buying NO, so YES probability should be lower than market
-  const isValidDirection =
-    (outcome === 'YES' && predictionPrice > currentMarketPrice) ||
-    (outcome === 'NO' && predictionPrice < currentMarketPrice);
-
-  if (!isValidDirection) {
-    return {
-      valid: false,
-      reason: `Market price ${currentMarketPrice.toFixed(3)} does not support ${outcome} trade (prediction: ${predictionPrice.toFixed(3)})`,
-      delta,
-    };
-  }
-
+  // Both underpriced and overpriced are now valid
+  // No direction check needed - strategy will handle the direction
   return {
     valid: true,
     delta,

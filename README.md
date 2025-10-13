@@ -161,6 +161,125 @@ pnpm dev run:experiment -e 002 -u <market-url>
 ✅ **Feature flags** - Enable/disable experiments without code changes
 ✅ **Metadata-rich** - Version tracking, tags, descriptions, and more
 
+---
+
+## 📊 Trade Generation
+
+The Trade Generator converts AI predictions into executable trade plans for paper trading on Polymarket. It analyzes the delta between AI predictions and current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema](https://github.com/better-labs/betteroms/blob/main/src/domain/schemas/trade-plan-v0.0.2.schema.json).
+
+### Command
+
+```bash
+pnpm dev generate:trade -p <prediction-uuid>
+```
+
+### Options
+
+- `-p, --prediction-id <id>` - Prediction UUID from database (required)
+- `-s, --strategy <name>` - Trading strategy to use (default: `takeProfit`)
+- `-d, --min-delta <percent>` - Minimum delta threshold percentage (default: `2.5`)
+
+### Example
+
+```bash
+# Generate trade plan from a prediction
+pnpm dev generate:trade -p "abc123-def456-ghi789"
+
+# Use custom delta threshold
+pnpm dev generate:trade -p "abc123-def456-ghi789" -d 5.0
+```
+
+### How It Works
+
+1. **Fetch Prediction** - Retrieves prediction data from database
+2. **Get Market Price** - Fetches current market price from Polymarket API
+3. **Validate Opportunity** - Checks if delta exceeds threshold (default 2.5%)
+4. **Generate Trade Plan** - Creates trade plan using selected strategy
+
+### Trading Strategy: Take Profit
+
+The default `takeProfit` strategy intelligently handles both underpriced and overpriced scenarios with **conservative profit targets** set at the halfway point between market and AI prediction:
+
+**Scenario 1: Underpriced (Market < AI Prediction)**
+- Buys the predicted outcome when market is undervaluing it
+- Takes profit at halfway point toward AI prediction
+- Example: AI says YES at 75%, market is 60% → Buy YES, sell at 67.5%
+
+**Scenario 2: Overpriced (Market > AI Prediction)**
+- Buys the opposite outcome when market is overvaluing the prediction
+- Takes profit at halfway point toward inverse AI target
+- Example: AI says YES at 82%, market is 91.5% → Buy NO at 8.5%, sell at 13.25%
+
+**Example Output (Underpriced):**
+```json
+{
+  "planId": "prediction-abc123-1234567890",
+  "mode": "paper",
+  "trades": [
+    {
+      "marketId": "0x123...",
+      "outcome": "YES",
+      "side": "BUY",
+      "orderType": "MARKET",
+      "size": 1,
+      "notes": "Entry: Buy YES at market 0.600 (underpriced vs AI prediction 0.750)"
+    },
+    {
+      "marketId": "0x123...",
+      "outcome": "YES",
+      "side": "SELL",
+      "orderType": "LIMIT",
+      "price": 0.675,
+      "size": 1,
+      "notes": "Take profit: Sell YES at halfway target 0.675 (50% toward AI prediction 0.750)"
+    }
+  ]
+}
+```
+
+**Example Output (Overpriced):**
+```json
+{
+  "planId": "prediction-def456-9876543210",
+  "mode": "paper",
+  "trades": [
+    {
+      "marketId": "0x456...",
+      "outcome": "NO",
+      "side": "BUY",
+      "orderType": "MARKET",
+      "size": 1,
+      "notes": "Entry: Buy NO at market 0.085 (AI predicts YES overpriced at 0.915 vs 0.820)"
+    },
+    {
+      "marketId": "0x456...",
+      "outcome": "NO",
+      "side": "SELL",
+      "orderType": "LIMIT",
+      "price": 0.133,
+      "size": 1,
+      "notes": "Take profit: Sell NO at halfway target 0.133 (50% toward inverse AI target 0.180)"
+    }
+  ]
+}
+```
+
+### Key Features
+
+✅ **Bidirectional Trading** - Automatically handles both underpriced and overpriced markets
+✅ **Contrarian Positions** - Takes opposite side when market disagrees with AI
+✅ **Conservative Targets** - Takes profit at halfway point (50% of predicted edge)
+✅ **Higher Execution Rate** - Realistic targets increase likelihood of limit orders filling
+✅ **Smart Detection** - Determines optimal outcome to trade without manual intervention
+
+### Validation Rules
+
+- **UNCERTAIN predictions** - Rejected with error message
+- **Minimum delta** - Must exceed 2.5% (configurable) between prediction and market
+- **Automatic direction** - Strategy intelligently chooses which outcome to buy
+
+For detailed design documentation, see [docs/design-trade-generator.md](docs/design-trade-generator.md).
+
 
 
 ## Todos
