@@ -165,8 +165,12 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## Todos
 
-Prediction Benchmarking
-- Add a Prediction Check batch job that pulls the latest Market information for all markets currently listed as open. leverage new isMarketOpenForBetting() function in market-utils to determine whether market is still open. If market is closed, see if it has a prediction check entry yet. if not, ...
+Order Generation
+- Test new order gen features
+
+
+
+
 
 Experiments
 - Test sending one agent's output to another agent an also understand whether each are unique
