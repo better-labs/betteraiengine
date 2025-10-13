@@ -22,7 +22,7 @@ The system is operated via CLI commands and scheduled batch jobs (daily syncs).
 ## User Stories
 - Prediction: As a user, I can run a CLI command that will fetch a Polymarket event and/or market's latest data, run a prediction job. Store intermediate prediction jobs, steps, and results to the database.
 - Inspect prediction job steps, including raw AI responses, to debug prompt performance.
-5. View past predictions in the database by inspecting raw API JSON + saved prompt context.
+- View past predictions in the database by inspecting raw API JSON + saved prompt context.
 
 ---
 
