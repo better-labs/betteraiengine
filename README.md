@@ -198,17 +198,23 @@ pnpm dev generate:trade -p "abc123-def456-ghi789" -d 5.0
 
 ### Trading Strategy: Take Profit
 
-The default `takeProfit` strategy intelligently handles both underpriced and overpriced scenarios with **conservative profit targets** set at the halfway point between market and AI prediction:
+The default `takeProfit` strategy intelligently handles both underpriced and overpriced scenarios with **confidence-based profit targets** that scale with the AI's confidence level:
+
+**Profit Target Formula**: `profitFraction = confidence / 200`
+
+- **High confidence (90%+)**: Takes ~45-50% of predicted edge
+- **Medium confidence (70-90%)**: Takes ~35-45% of predicted edge
+- **Low confidence (50-70%)**: Takes ~25-35% of predicted edge
 
 **Scenario 1: Underpriced (Market < AI Prediction)**
 - Buys the predicted outcome when market is undervaluing it
-- Takes profit at halfway point toward AI prediction
-- Example: AI says YES at 75%, market is 60% → Buy YES, sell at 67.5%
+- Takes profit based on confidence (more confident = more aggressive)
+- Example: AI says YES at 75% (85% confidence), market at 60% → Buy YES, sell at 66.4% (38% of edge)
 
 **Scenario 2: Overpriced (Market > AI Prediction)**
 - Buys the opposite outcome when market is overvaluing the prediction
-- Takes profit at halfway point toward inverse AI target
-- Example: AI says YES at 82%, market is 91.5% → Buy NO at 8.5%, sell at 13.25%
+- Takes profit based on confidence toward inverse AI target
+- Example: AI says YES at 82% (76% confidence), market at 91.5% → Buy NO at 8.5%, sell at 12.1% (38% of edge)
 
 **Example Output (Underpriced):**
 ```json
@@ -268,7 +274,8 @@ The default `takeProfit` strategy intelligently handles both underpriced and ove
 
 ✅ **Bidirectional Trading** - Automatically handles both underpriced and overpriced markets
 ✅ **Contrarian Positions** - Takes opposite side when market disagrees with AI
-✅ **Conservative Targets** - Takes profit at halfway point (50% of predicted edge)
+✅ **Confidence-Based Targets** - Profit targets scale with AI confidence (25-50% of predicted edge)
+✅ **Dynamic Risk Management** - Higher confidence = more aggressive, lower confidence = more conservative
 ✅ **Higher Execution Rate** - Realistic targets increase likelihood of limit orders filling
 ✅ **Smart Detection** - Determines optimal outcome to trade without manual intervention
 
@@ -287,17 +294,16 @@ For detailed design documentation, see [docs/design-trade-generator.md](docs/des
 Order Generation
 - Test new order gen features
 
+- Modify publishing to write to a subfolder of experiment to include the date yyyy-mm-dd
+- Write new command to mimic run:experiment to be run:pipeline, copy exp005 to be pipeline001
 
 
-
-
-Experiments
-- Test sending one agent's output to another agent an also understand whether each are unique
 
 Data benchmarking
 - Generate a few simple tests to query existing data sources, send them all to AIs and ask AI to rate the quality, comprehensiveness and recency of the data, consider asking it to remove or filter data that is not helpful or relevant.
 
 Experiments
+- Test sending one agent's output to another agent an also understand whether each are unique
 - run the prediction across multiple top models from config/models.ts, including open source and chinese models
 - Add custom user supplied context. Seek out experts in a given field to apply their knowledge to the prediction
   - Post update, example to twitter.
