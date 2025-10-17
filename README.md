@@ -8,6 +8,65 @@ BetterAI Engine is part of the evolving BetterAI platform. Please see the other 
 
 ---
 
+## 📋 Available Commands
+
+BetterAI Engine provides a comprehensive CLI for managing experiments, generating predictions, creating trade plans, and publishing results. Here's a quick reference:
+
+### Experiment Management
+
+**List all experiments:**
+```bash
+pnpm dev list:experiments          # Show enabled experiments only
+pnpm dev list:experiments --all    # Show all experiments including disabled
+```
+
+**Run a single experiment:**
+```bash
+pnpm dev run:experiment -e <exp-id> -u <url>                    # Run with Polymarket URL
+pnpm dev run:experiment -e <exp-id> -s <slug>                   # Run with market slug
+pnpm dev run:experiment -e 001 -u <url> --publish               # Run and publish to GitHub
+```
+
+**Run experiments in batch:**
+```bash
+pnpm dev run:experiments-batch -e <exp-id> -j <json-file>       # Run on multiple markets
+pnpm dev run:experiments-batch -e 001 -j markets.json --publish # Run batch and publish
+```
+
+### Prediction & Publishing
+
+**Publish an existing prediction:**
+```bash
+pnpm dev publish:prediction -p <prediction-uuid>
+```
+
+### Trade Generation
+
+**Generate trade plan from prediction:**
+```bash
+pnpm dev generate:trade -p <prediction-uuid>                    # Use default settings
+pnpm dev generate:trade -p <uuid> -s takeProfit                 # Specify strategy
+pnpm dev generate:trade -p <uuid> -d 5.0                        # Custom delta threshold (5%)
+```
+
+### Examples
+
+```bash
+# Run experiment 001 on a specific market
+pnpm dev run:experiment -e 001 -u https://polymarket.com/event/college-football-champion-2026-684/will-georgia-tech-win-the-2026-college-football-national-championship
+
+# Generate trade plan with 3% minimum delta
+pnpm dev generate:trade -p "abc123-def456-ghi789" -d 3.0
+
+# List all available experiments including disabled ones
+pnpm dev list:experiments --all
+
+# Run batch experiments from file and publish results
+pnpm dev run:experiments-batch -e 005 -j ./data/markets.json --publish
+```
+
+---
+
 ## 🎯 Purpose
 
 The purpose of BetterAI-v2 is to provide a streamlined, backend-only prediction engine for Polymarket markets. By focusing on ingestion, storage, and automated AI-driven predictions, it avoids early frontend overhead while ensuring data auditability, reproducibility, and future extensibility.
