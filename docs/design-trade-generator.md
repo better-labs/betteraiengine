@@ -48,7 +48,26 @@ Trade Plan JSON Output
 The "Take Profit" strategy handles both **underpriced** and **overpriced** scenarios by executing two orders:
 
 1. **Market BUY** - Immediate entry at current market price
-2. **Limit SELL** - Take profit order at **halfway point** between market and AI prediction (conservative target)
+2. **Limit SELL** - Take profit order at **confidence-based target** (scales with AI confidence)
+
+### Profit Target Formula
+
+**`profitFraction = confidence / 200`**
+
+This formula adjusts profit targets based on the AI's confidence level:
+
+| Confidence | Profit Fraction | Description |
+|------------|-----------------|-------------|
+| 100% | 50% | Maximum aggressive target (takes half the predicted edge) |
+| 90% | 45% | High confidence target |
+| 80% | 40% | Moderate-high confidence |
+| 76% | 38% | Moderate confidence |
+| 70% | 35% | Moderate-low confidence |
+| 60% | 30% | Conservative target |
+| 50% | 25% | Minimum conservative target |
+
+**Higher AI confidence → More aggressive profit target**
+**Lower AI confidence → More conservative profit target**
 
 ### Strategy Logic
 

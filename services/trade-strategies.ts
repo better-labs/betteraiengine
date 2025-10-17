@@ -27,18 +27,24 @@ export interface StrategyOutput {
 /**
  * Take Profit Strategy
  *
- * Handles both underpriced and overpriced scenarios:
+ * Handles both underpriced and overpriced scenarios with confidence-based profit targets:
  *
  * UNDERPRICED (Market < AI Prediction):
  * - Buy the predicted outcome at market price
- * - Sell at HALFWAY point between market and AI prediction (conservative profit target)
+ * - Sell at confidence-based target (profitFraction = confidence / 200)
  *
  * OVERPRICED (Market > AI Prediction):
  * - Buy the OPPOSITE outcome at market price
- * - Sell at HALFWAY point toward inverse AI target (conservative profit target)
+ * - Sell at confidence-based target toward inverse AI target
  *
- * This strategy captures immediate market entry and sets a conservative profit
- * target at 50% of the predicted edge, increasing likelihood of order execution.
+ * PROFIT TARGET FORMULA: profitFraction = confidence / 200
+ * - 100% confidence → 50% of edge (max target)
+ * - 80% confidence → 40% of edge
+ * - 60% confidence → 30% of edge
+ * - 50% confidence → 25% of edge (min target)
+ *
+ * Higher AI confidence = more aggressive profit target (captures more of predicted edge)
+ * Lower AI confidence = more conservative target (captures less, exits earlier)
  */
 export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
   const { predictionProbability, currentMarketPrice, confidence, outcome } = input;
@@ -76,9 +82,12 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
     // UNDERPRICED: Buy the predicted outcome
     buyOutcome = outcome;
 
-    // Calculate halfway point between market and AI prediction
-    const halfwayDistance = (predictionPrice - outcomeMarketPrice) / 2;
-    targetPrice = outcomeMarketPrice + halfwayDistance;
+    // Calculate profit target based on confidence
+    // profitFraction = confidence / 200 (max 50% at 100% confidence, scales down from there)
+    const profitFraction = confidence / 200;
+    const fullDistance = predictionPrice - outcomeMarketPrice;
+    const targetDistance = fullDistance * profitFraction;
+    targetPrice = outcomeMarketPrice + targetDistance;
 
     const trades = [
       {
@@ -94,11 +103,11 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
         orderType: 'LIMIT' as const,
         size: tradeSize,
         price: targetPrice,
-        notes: `Take profit: Sell ${buyOutcome} at halfway target ${targetPrice.toFixed(3)} (50% toward AI prediction ${predictionPrice.toFixed(3)})`,
+        notes: `Take profit: Sell ${buyOutcome} at target ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI prediction ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
       },
     ];
 
-    reasoning = `Take profit (underpriced): Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)}, sell at halfway point ${targetPrice.toFixed(3)} (50% toward AI target ${predictionPrice.toFixed(3)}). Expected edge: ${((targetPrice - outcomeMarketPrice) * 100).toFixed(1)}%`;
+    reasoning = `Take profit (underpriced): Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)}, sell at ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI target ${predictionPrice.toFixed(3)}, confidence-based). Expected edge: ${((targetPrice - outcomeMarketPrice) * 100).toFixed(1)}%`;
 
     return {
       trades,
@@ -115,9 +124,12 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
     // Full AI target for opposite outcome (inverse of prediction)
     const fullTargetPrice = 1 - predictionPrice;
 
-    // Calculate halfway point between opposite market price and AI target
-    const halfwayDistance = (fullTargetPrice - oppositeMarketPrice) / 2;
-    targetPrice = oppositeMarketPrice + halfwayDistance;
+    // Calculate profit target based on confidence
+    // profitFraction = confidence / 200 (max 50% at 100% confidence, scales down from there)
+    const profitFraction = confidence / 200;
+    const fullDistance = fullTargetPrice - oppositeMarketPrice;
+    const targetDistance = fullDistance * profitFraction;
+    targetPrice = oppositeMarketPrice + targetDistance;
 
     const trades = [
       {
@@ -133,11 +145,11 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
         orderType: 'LIMIT' as const,
         size: tradeSize,
         price: targetPrice,
-        notes: `Take profit: Sell ${buyOutcome} at halfway target ${targetPrice.toFixed(3)} (50% toward inverse AI target ${fullTargetPrice.toFixed(3)})`,
+        notes: `Take profit: Sell ${buyOutcome} at target ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward inverse AI target ${fullTargetPrice.toFixed(3)}, confidence: ${confidence}%)`,
       },
     ];
 
-    reasoning = `Take profit (overpriced): AI predicts ${outcome} at ${predictionPrice.toFixed(3)} but market is ${outcomeMarketPrice.toFixed(3)}. Buy opposite outcome ${buyOutcome} at ${oppositeMarketPrice.toFixed(3)}, sell at halfway point ${targetPrice.toFixed(3)} (50% toward AI target ${fullTargetPrice.toFixed(3)}). Expected edge: ${((targetPrice - oppositeMarketPrice) * 100).toFixed(1)}%`;
+    reasoning = `Take profit (overpriced): AI predicts ${outcome} at ${predictionPrice.toFixed(3)} but market is ${outcomeMarketPrice.toFixed(3)}. Buy opposite outcome ${buyOutcome} at ${oppositeMarketPrice.toFixed(3)}, sell at ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI target ${fullTargetPrice.toFixed(3)}, confidence-based). Expected edge: ${((targetPrice - oppositeMarketPrice) * 100).toFixed(1)}%`;
 
     return {
       trades,
