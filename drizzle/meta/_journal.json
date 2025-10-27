@@ -43,6 +43,13 @@
       "when": 1760012377169,
       "tag": "0005_funny_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1761593982743,
+      "tag": "0006_quick_black_tom",
+      "breakpoints": true
     }
   ]
 }

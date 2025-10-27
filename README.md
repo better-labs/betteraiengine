@@ -224,7 +224,7 @@ pnpm dev run:experiment -e 002 -u <market-url>
 
 ## 📊 Trade Generation
 
-The Trade Generator converts AI predictions into executable trade plans for paper trading on Polymarket. It analyzes the delta between AI predictions and current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema](https://github.com/better-labs/betteroms/blob/main/src/domain/schemas/trade-plan-v0.0.2.schema.json).
+The Trade Generator converts AI predictions into executable trade plans for paper trading on Polymarket. It analyzes the delta between AI predictions and current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema v0.0.6](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.6.schema.json).
 
 ### Command
 
@@ -280,23 +280,22 @@ The default `takeProfit` strategy intelligently handles both underpriced and ove
 {
   "planId": "prediction-abc123-1234567890",
   "mode": "paper",
+  "notes": "Take profit (underpriced): Buy YES at market 0.600, sell at 0.675 (42.5% toward AI target 0.750, confidence-based). Expected edge: 7.5%",
   "trades": [
     {
-      "marketId": "0x123...",
+      "marketTokenId": "50056291296373013403053264672448796961558656386670931029485176637893947669174",
       "outcome": "YES",
       "side": "BUY",
       "orderType": "MARKET",
-      "size": 1,
-      "notes": "Entry: Buy YES at market 0.600 (underpriced vs AI prediction 0.750)"
+      "size": 1
     },
     {
-      "marketId": "0x123...",
+      "marketTokenId": "50056291296373013403053264672448796961558656386670931029485176637893947669174",
       "outcome": "YES",
       "side": "SELL",
       "orderType": "LIMIT",
       "price": 0.675,
-      "size": 1,
-      "notes": "Take profit: Sell YES at halfway target 0.675 (50% toward AI prediction 0.750)"
+      "size": 1
     }
   ]
 }
@@ -307,23 +306,22 @@ The default `takeProfit` strategy intelligently handles both underpriced and ove
 {
   "planId": "prediction-def456-9876543210",
   "mode": "paper",
+  "notes": "Take profit (overpriced): AI predicts YES at 0.820 but market is 0.915. Buy opposite outcome NO at 0.085, sell at 0.133 (38% toward inverse AI target 0.180, confidence-based). Expected edge: 4.8%",
   "trades": [
     {
-      "marketId": "0x456...",
+      "marketTokenId": "1848970600573335108085877783719034971837863729226932893148573876733882101789",
       "outcome": "NO",
       "side": "BUY",
       "orderType": "MARKET",
-      "size": 1,
-      "notes": "Entry: Buy NO at market 0.085 (AI predicts YES overpriced at 0.915 vs 0.820)"
+      "size": 1
     },
     {
-      "marketId": "0x456...",
+      "marketTokenId": "1848970600573335108085877783719034971837863729226932893148573876733882101789",
       "outcome": "NO",
       "side": "SELL",
       "orderType": "LIMIT",
       "price": 0.133,
-      "size": 1,
-      "notes": "Take profit: Sell NO at halfway target 0.133 (50% toward inverse AI target 0.180)"
+      "size": 1
     }
   ]
 }

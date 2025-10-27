@@ -74,6 +74,11 @@ export const markets = pgTable('markets', {
   volume: text('volume'), // Using text for big numbers
   liquidity: text('liquidity'),
 
+  // CLOB token IDs for trading (ERC1155 token IDs)
+  // Format: JSON array ["<yes_token_id>", "<no_token_id>"]
+  // Index 0 = YES outcome token, Index 1 = NO outcome token
+  clobTokenIds: text('clob_token_ids'),
+
   // Market images
   icon: text('icon'), // Market icon URL
   image: text('image'), // Market image URL
