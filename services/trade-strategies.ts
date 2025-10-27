@@ -18,10 +18,11 @@ export interface StrategyOutput {
     orderType: 'MARKET' | 'LIMIT';
     size: number;
     price?: number;
-    notes: string;
   }>;
   strategyName: string;
   reasoning: string;
+  // Notes are stored separately for logging/display but not in the trade plan schema
+  tradeNotes?: string[];
 }
 
 /**
@@ -95,7 +96,6 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
         side: 'BUY' as const,
         orderType: 'MARKET' as const,
         size: tradeSize,
-        notes: `Entry: Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)} (underpriced vs AI prediction ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
       },
       {
         outcome: buyOutcome,
@@ -103,8 +103,12 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
         orderType: 'LIMIT' as const,
         size: tradeSize,
         price: targetPrice,
-        notes: `Take profit: Sell ${buyOutcome} at target ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI prediction ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
       },
+    ];
+
+    const tradeNotes = [
+      `Entry: Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)} (underpriced vs AI prediction ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
+      `Take profit: Sell ${buyOutcome} at target ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI prediction ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
     ];
 
     reasoning = `Take profit (underpriced): Buy ${buyOutcome} at market ${outcomeMarketPrice.toFixed(3)}, sell at ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI target ${predictionPrice.toFixed(3)}, confidence-based). Expected edge: ${((targetPrice - outcomeMarketPrice) * 100).toFixed(1)}%`;
@@ -113,6 +117,7 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
       trades,
       strategyName: 'takeProfit',
       reasoning,
+      tradeNotes,
     };
   } else if (isOverpriced) {
     // OVERPRICED: Buy the OPPOSITE outcome
@@ -137,7 +142,6 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
         side: 'BUY' as const,
         orderType: 'MARKET' as const,
         size: tradeSize,
-        notes: `Entry: Buy ${buyOutcome} at market ${oppositeMarketPrice.toFixed(3)} (AI predicts ${outcome} overpriced at ${outcomeMarketPrice.toFixed(3)} vs ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
       },
       {
         outcome: buyOutcome,
@@ -145,8 +149,12 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
         orderType: 'LIMIT' as const,
         size: tradeSize,
         price: targetPrice,
-        notes: `Take profit: Sell ${buyOutcome} at target ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward inverse AI target ${fullTargetPrice.toFixed(3)}, confidence: ${confidence}%)`,
       },
+    ];
+
+    const tradeNotes = [
+      `Entry: Buy ${buyOutcome} at market ${oppositeMarketPrice.toFixed(3)} (AI predicts ${outcome} overpriced at ${outcomeMarketPrice.toFixed(3)} vs ${predictionPrice.toFixed(3)}, confidence: ${confidence}%)`,
+      `Take profit: Sell ${buyOutcome} at target ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward inverse AI target ${fullTargetPrice.toFixed(3)}, confidence: ${confidence}%)`,
     ];
 
     reasoning = `Take profit (overpriced): AI predicts ${outcome} at ${predictionPrice.toFixed(3)} but market is ${outcomeMarketPrice.toFixed(3)}. Buy opposite outcome ${buyOutcome} at ${oppositeMarketPrice.toFixed(3)}, sell at ${targetPrice.toFixed(3)} (${(profitFraction * 100).toFixed(1)}% toward AI target ${fullTargetPrice.toFixed(3)}, confidence-based). Expected edge: ${((targetPrice - oppositeMarketPrice) * 100).toFixed(1)}%`;
@@ -155,6 +163,7 @@ export function takeProfitStrategy(input: StrategyInput): StrategyOutput {
       trades,
       strategyName: 'takeProfit',
       reasoning,
+      tradeNotes,
     };
   } else {
     // Should not happen if validation passed, but handle edge case

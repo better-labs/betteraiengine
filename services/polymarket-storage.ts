@@ -110,6 +110,7 @@ export async function saveMarket(marketData: PolymarketMarket) {
       closed: marketData.closed ?? false,
       volume: marketData.volume || null,
       liquidity: marketData.liquidity || null,
+      clobTokenIds: marketData.clobTokenIds || null,
       icon: marketData.icon || null,
       image: marketData.image || null,
     })
@@ -124,6 +125,7 @@ export async function saveMarket(marketData: PolymarketMarket) {
         closed: marketData.closed ?? false,
         volume: marketData.volume || null,
         liquidity: marketData.liquidity || null,
+        clobTokenIds: marketData.clobTokenIds || null,
         icon: marketData.icon || null,
         image: marketData.image || null,
         updatedAt: new Date(),

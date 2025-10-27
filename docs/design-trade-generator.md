@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Trade Generator feature converts AI predictions into executable trade plans for paper trading on Polymarket. It fetches predictions from the database, retrieves current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema v0.0.2](https://github.com/better-labs/betteroms/blob/main/src/domain/schemas/trade-plan-v0.0.2.schema.json).
+The Trade Generator feature converts AI predictions into executable trade plans for paper trading on Polymarket. It fetches predictions from the database, retrieves current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema v0.0.4](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.4.schema.json).
 
 ## Architecture
 
@@ -92,8 +92,7 @@ Generated Trade Plan:
     "outcome": "YES",
     "side": "BUY",
     "orderType": "MARKET",
-    "size": 1,
-    "notes": "Entry: Buy YES at market 0.600 (underpriced vs AI prediction 0.750, confidence: 85%)"
+    "size": 1
   },
   {
     "marketId": "0x123...",
@@ -101,8 +100,7 @@ Generated Trade Plan:
     "side": "SELL",
     "orderType": "LIMIT",
     "price": 0.675,
-    "size": 1,
-    "notes": "Take profit: Sell YES at halfway target 0.675 (50% toward AI prediction 0.750)"
+    "size": 1
   }
 ]
 
@@ -129,8 +127,7 @@ Generated Trade Plan:
     "outcome": "NO",
     "side": "BUY",
     "orderType": "MARKET",
-    "size": 1,
-    "notes": "Entry: Buy NO at market 0.085 (AI predicts YES overpriced at 0.915 vs 0.820, confidence: 76%)"
+    "size": 1
   },
   {
     "marketId": "0x123...",
@@ -138,8 +135,7 @@ Generated Trade Plan:
     "side": "SELL",
     "orderType": "LIMIT",
     "price": 0.133,
-    "size": 1,
-    "notes": "Take profit: Sell NO at halfway target 0.133 (50% toward inverse AI target 0.180)"
+    "size": 1
   }
 ]
 
@@ -180,7 +176,7 @@ The strategy automatically handles both scenarios:
 
 ## Trade Plan Schema
 
-Follows [BetterOMS Trade Plan v0.0.2](https://github.com/better-labs/betteroms/blob/main/src/domain/schemas/trade-plan-v0.0.2.schema.json):
+Follows [BetterOMS Trade Plan v0.0.4](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.4.schema.json):
 
 ```typescript
 interface TradePlan {
@@ -193,7 +189,6 @@ interface TradePlan {
     orderType: "MARKET" | "LIMIT";
     size: number;              // Amount in USDC (fixed at 1 for paper trading)
     price?: number;            // Required for LIMIT orders (0-1 scale)
-    notes?: string;            // Human-readable description
   }>;
 }
 ```

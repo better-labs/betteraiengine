@@ -2,7 +2,7 @@ import { logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
 import { predictions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { fetchMarketById, type PolymarketMarket } from './polymarket.js';
+import { fetchMarketById, extractTokenIdForOutcome, type PolymarketMarket } from './polymarket.js';
 import {
   calculateTradeStrategy,
   validateTradeOpportunity,
@@ -11,20 +11,25 @@ import {
 } from './trade-strategies.js';
 
 /**
- * Trade Plan Schema v0.0.2
- * Based on: https://github.com/better-labs/betteroms/blob/main/src/domain/schemas/trade-plan-v0.0.2.schema.json
+ * Trade Plan Schema v0.0.6
+ * Based on: https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.6.schema.json
+ *
+ * Key changes in v0.0.6:
+ * - Added 'notes' field at the TradePlan level (not per-trade)
+ * - Changed 'marketId' to 'marketTokenId' (ERC1155 token ID for specific outcome)
+ * - marketTokenId is the CLOB token ID used by Polymarket's order book
  */
 export interface TradePlan {
   planId: string;
   mode: 'paper' | 'live';
+  notes?: string; // Optional plan-level notes about rationale, strategy, or context
   trades: Array<{
-    marketId: string;
+    marketTokenId: string; // CLOB token ID (not market ID)
     outcome: 'YES' | 'NO';
     side: 'BUY' | 'SELL';
     orderType: 'MARKET' | 'LIMIT';
     size: number;
     price?: number;
-    notes?: string;
   }>;
 }
 
@@ -180,19 +185,24 @@ export async function generateTrade(input: GenerateTradeInput): Promise<Generate
     const strategy: StrategyOutput = calculateTradeStrategy(strategyName, strategyInput);
     contextLogger.info({ strategy: strategy.strategyName }, 'Calculated trade strategy');
 
-    // 8. Build trade plan
+    // 8. Build trade plan with v0.0.6 schema
     const tradePlan: TradePlan = {
       planId: `prediction-${predictionId}-${Date.now()}`,
       mode: 'paper',
-      trades: strategy.trades.map((trade) => ({
-        marketId: prediction.marketId!,
-        outcome: trade.outcome,
-        side: trade.side,
-        orderType: trade.orderType,
-        size: trade.size,
-        price: trade.price,
-        notes: trade.notes,
-      })),
+      notes: strategy.reasoning, // Plan-level notes with strategy reasoning
+      trades: strategy.trades.map((trade) => {
+        // Extract the correct token ID for this outcome
+        const marketTokenId = extractTokenIdForOutcome(market.clobTokenIds, trade.outcome);
+
+        return {
+          marketTokenId,
+          outcome: trade.outcome,
+          side: trade.side,
+          orderType: trade.orderType,
+          size: trade.size,
+          price: trade.price,
+        };
+      }),
     };
 
     contextLogger.info({ planId: tradePlan.planId }, 'Generated trade plan successfully');

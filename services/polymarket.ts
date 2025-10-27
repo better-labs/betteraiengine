@@ -29,6 +29,7 @@ export interface PolymarketMarket {
   liquidity?: string;
   outcomes?: string;
   outcomePrices?: string;
+  clobTokenIds?: string; // JSON array: ["<yes_token_id>", "<no_token_id>"]
   icon?: string;
   image?: string;
   [key: string]: unknown;
@@ -124,6 +125,37 @@ export async function fetchTopMarkets(limit: number = 10): Promise<PolymarketMar
   logger.info({ count: markets.length }, 'Successfully fetched top markets');
 
   return markets as PolymarketMarket[];
+}
+
+/**
+ * Extract the correct token ID for a given outcome from clobTokenIds
+ * @param clobTokenIds - JSON array string like '["<yes_token_id>", "<no_token_id>"]'
+ * @param outcome - 'YES' or 'NO'
+ * @returns The token ID for the specified outcome
+ */
+export function extractTokenIdForOutcome(clobTokenIds: string | undefined, outcome: 'YES' | 'NO'): string {
+  if (!clobTokenIds) {
+    throw new Error('clobTokenIds is not available for this market');
+  }
+
+  try {
+    const tokenIds = JSON.parse(clobTokenIds);
+    if (!Array.isArray(tokenIds) || tokenIds.length < 2) {
+      throw new Error('Invalid clobTokenIds format - expected array with 2 elements');
+    }
+
+    // Index 0 = YES, Index 1 = NO
+    const tokenId = outcome === 'YES' ? tokenIds[0] : tokenIds[1];
+
+    if (!tokenId || typeof tokenId !== 'string') {
+      throw new Error(`Invalid token ID for outcome ${outcome}`);
+    }
+
+    return tokenId;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to extract token ID for outcome ${outcome}: ${errorMessage}`);
+  }
 }
 
 /**

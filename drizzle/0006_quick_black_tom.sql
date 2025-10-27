@@ -1,0 +1,1 @@
+ALTER TABLE "markets" ADD COLUMN "clob_token_ids" text;
