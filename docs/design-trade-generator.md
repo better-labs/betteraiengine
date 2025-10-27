@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Trade Generator feature converts AI predictions into executable trade plans for paper trading on Polymarket. It fetches predictions from the database, retrieves current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema v0.0.4](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.4.schema.json).
+The Trade Generator feature converts AI predictions into executable trade plans for paper trading on Polymarket. It fetches predictions from the database, retrieves current market prices, validates trading opportunities, and generates structured trade plans following the [BetterOMS Trade Plan Schema v0.0.6](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.6.schema.json).
 
 ## Architecture
 
@@ -176,14 +176,15 @@ The strategy automatically handles both scenarios:
 
 ## Trade Plan Schema
 
-Follows [BetterOMS Trade Plan v0.0.4](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.4.schema.json):
+Follows [BetterOMS Trade Plan v0.0.6](https://github.com/better-labs/betteroms/blob/main/docs/schemas/trade-plan-v0.0.6.schema.json):
 
 ```typescript
 interface TradePlan {
   planId: string;              // "prediction-{uuid}-{timestamp}"
   mode: "paper" | "live";      // Always "paper" for now
+  notes?: string;              // Optional plan-level notes with strategy rationale
   trades: Array<{
-    marketId: string;          // Polymarket market ID
+    marketTokenId: string;     // ERC1155 CLOB token ID (not market ID)
     outcome: "YES" | "NO";     // Which outcome to trade
     side: "BUY" | "SELL";      // Buy or sell
     orderType: "MARKET" | "LIMIT";
@@ -192,6 +193,14 @@ interface TradePlan {
   }>;
 }
 ```
+
+### Key Changes in v0.0.6
+
+- **Plan-level notes**: Added optional `notes` field at the TradePlan level (not per-trade) for strategy reasoning
+- **marketTokenId**: Changed from `marketId` to `marketTokenId` - uses the ERC1155 token ID for the specific outcome
+  - Token IDs are extracted from the market's `clobTokenIds` array
+  - Index 0 = YES outcome token, Index 1 = NO outcome token
+  - These are the actual token IDs used by Polymarket's CLOB (Central Limit Order Book)
 
 ## Usage
 
