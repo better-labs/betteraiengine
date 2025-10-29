@@ -21,6 +21,8 @@ import { runExperiment } from './services/experiment-runner.js';
 import { getAllExperimentMetadata } from './experiments/config.js';
 import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
 import { generateTrade } from './services/trade-generator.js';
+import { fetchFilteredTrendingMarkets, getPolymarketMarketUrl } from './services/polymarket.js';
+import { formatOutcomePrices } from './utils/market-utils.js';
 
 const program = new Command();
 
@@ -440,6 +442,109 @@ program
           predictionId: options.predictionId,
         },
         'Failed to generate trade'
+      );
+      console.error('\nError:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Command: fetch:trending-markets
+ * Fetch and filter trending markets by 24h volume
+ */
+program
+  .command('fetch:trending-markets')
+  .description('Fetch trending Polymarket markets filtered by volume, tags, and spread')
+  .option('-l, --limit <number>', 'Maximum number of markets to fetch before filtering', '100')
+  .option(
+    '-s, --max-spread <percent>',
+    'Maximum spread percentage between YES/NO outcomes (default: 25)',
+    '25'
+  )
+  .option(
+    '-t, --exclude-tags <tags>',
+    'Comma-separated list of tags to exclude (default: Crypto,Hide From New,Weekly,Recurring)',
+    'Crypto,Hide From New,Weekly,Recurring'
+  )
+  .option('-j, --json', 'Output results as JSON')
+  .option('-u, --urls', 'Output only market URLs')
+  .action(async (options) => {
+    try {
+      const limit = parseInt(options.limit, 10);
+      if (isNaN(limit) || limit < 1) {
+        console.error('Error: --limit must be a positive number');
+        process.exit(1);
+      }
+
+      const maxSpreadPercent = parseFloat(options.maxSpread);
+      if (isNaN(maxSpreadPercent) || maxSpreadPercent < 0 || maxSpreadPercent > 100) {
+        console.error('Error: --max-spread must be a number between 0 and 100');
+        process.exit(1);
+      }
+
+      const maxSpread = maxSpreadPercent / 100; // Convert to decimal
+      const excludeTags = options.excludeTags.split(',').map((tag: string) => tag.trim());
+
+      console.log('\n=== FETCHING FILTERED TRENDING MARKETS ===');
+      console.log(`Limit: ${limit}`);
+      console.log(`Max Spread: ${maxSpreadPercent}%`);
+      console.log(`Exclude Tags: ${excludeTags.join(', ')}\n`);
+
+      const markets = await fetchFilteredTrendingMarkets({
+        limit,
+        excludeTags,
+        maxSpread,
+      });
+
+      if (options.urls) {
+        // Output only URLs
+        markets.forEach(({ market }) => {
+          console.log(getPolymarketMarketUrl(market));
+        });
+      } else if (options.json) {
+        // Output as JSON
+        const output = markets.map(({ id, slug, market }) => ({
+          id,
+          slug,
+          url: getPolymarketMarketUrl(market),
+          question: market.question,
+          volume: market.volume,
+          liquidity: market.liquidity,
+          outcomePrices: formatOutcomePrices(market.outcomePrices),
+          active: market.active,
+          closed: market.closed,
+        }));
+        console.log(JSON.stringify(output, null, 2));
+      } else {
+        // Human-readable output
+        console.log(`\n=== FOUND ${markets.length} MATCHING MARKETS ===\n`);
+
+        if (markets.length === 0) {
+          console.log('No markets found matching the criteria.');
+        } else {
+          markets.forEach(({ id, slug, market }, index) => {
+            console.log(`[${index + 1}] ${market.question}`);
+            console.log(`    ID: ${id}`);
+            console.log(`    Slug: ${slug}`);
+            console.log(`    URL: ${getPolymarketMarketUrl(market)}`);
+            if (market.volume) console.log(`    Volume: ${market.volume}`);
+            if (market.liquidity) console.log(`    Liquidity: ${market.liquidity}`);
+            if (market.outcomePrices) {
+              console.log(`    Prices: ${formatOutcomePrices(market.outcomePrices)}`);
+            }
+            console.log('');
+          });
+        }
+      }
+
+      console.log('\n===========================================\n');
+      process.exit(0);
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to fetch trending markets'
       );
       console.error('\nError:', error instanceof Error ? error.message : String(error));
       process.exit(1);

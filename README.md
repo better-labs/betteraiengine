@@ -349,6 +349,7 @@ For detailed design documentation, see [docs/design-trade-generator.md](docs/des
 ## Todos
 
 Order Generation
+- Create scripts to pull Polymarket markets by trending event (24 hr volume), filter to remove crypto markets (tagFilter = ["Crypto", "Hide From New", "Weekly", "Recurring"]), yes/no spreads within 25%
 - Test new order gen features
 
 - Modify publishing to write to a subfolder of experiment to include the date yyyy-mm-dd
