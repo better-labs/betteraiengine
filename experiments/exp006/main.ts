@@ -1,5 +1,4 @@
 import { logger } from '../../utils/logger.js';
-import { z } from 'zod';
 import { PolymarketMarket } from '../../services/polymarket.js';
 import { savePrediction, saveFailedPrediction } from '../../services/prediction-storage.js';
 import { calculatePredictionDelta } from '../../utils/market-utils.js';
@@ -7,32 +6,13 @@ import { MODEL_IDS } from '../../config/models.js';
 import { fetchTrendingMarkets } from './fetch.js';
 import { performMarketResearch } from './research.js';
 import { buildPrompts } from './build-prompts.js';
+import { PredictionSchema, type PredictionOutput } from './schemas.js';
 
 export interface ExperimentResult {
   success: boolean;
   data?: any;
   error?: string;
 }
-
-/**
- * Zod schema for structured prediction output with enhanced formatting requirements
- */
-const PredictionSchema = z.object({
-  marketId: z.string().describe('Polymarket market identifier'),
-  question: z.string().describe('Market question being analyzed'),
-  prediction: z.object({
-    outcome: z.enum(['YES', 'NO', 'UNCERTAIN']).describe('Predicted outcome'),
-    outcomeReasoning: z.string().min(10).describe('Detailed reasoning for the predicted outcome with structured formatting'),
-    confidence: z.number().min(0).max(100).describe('Confidence level in prediction (0-100)'),
-    confidenceReasoning: z.string().min(10).describe('Detailed reasoning for the confidence level with structured formatting'),
-    probability: z.number().min(0).max(100).describe('Estimated probability of YES outcome (0-100)'),
-  }),
-  keyFactors: z.array(z.string()).min(1).describe('Key factors influencing the prediction'),
-  dataQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).describe('Quality of available data for analysis'),
-  lastUpdated: z.string().datetime().describe('ISO timestamp of prediction'),
-});
-
-export type PredictionOutput = z.infer<typeof PredictionSchema>;
 
 /**
  * Experiment 006: Trending Markets Auto-Analysis
@@ -145,9 +125,9 @@ export async function run(market?: PolymarketMarket): Promise<ExperimentResult> 
       {
         experimentId: '006',
         marketId: targetMarket.id,
-        outcome: predictionData.prediction.outcome,
-        confidence: predictionData.prediction.confidence,
-        probability: predictionData.prediction.probability,
+        outcome: predictionData.outcome,
+        confidence: predictionData.confidence,
+        probability: predictionData.probability,
       },
       'Structured prediction generated and validated with enhanced formatting'
     );
@@ -155,7 +135,7 @@ export async function run(market?: PolymarketMarket): Promise<ExperimentResult> 
     // Calculate prediction delta
     const deltaResult = calculatePredictionDelta(
       targetMarket.outcomePrices,
-      predictionData.prediction.probability
+      predictionData.probability
     );
 
     let predictionDelta: number | undefined;
@@ -167,7 +147,7 @@ export async function run(market?: PolymarketMarket): Promise<ExperimentResult> 
           marketId: targetMarket.id,
           delta: predictionDelta,
           marketPrice: targetMarket.outcomePrices,
-          predictedProbability: predictionData.prediction.probability,
+          predictedProbability: predictionData.probability,
         },
         'Prediction delta calculated'
       );
@@ -187,6 +167,8 @@ export async function run(market?: PolymarketMarket): Promise<ExperimentResult> 
       marketId: targetMarket.id,
       experimentId: '006',
       prediction: {
+        marketId: targetMarket.id,
+        question: targetMarket.question,
         ...predictionData,
         enrichmentMetadata: {
           exaResearchSuccess: researchMetadata.exaSuccess,

@@ -1,5 +1,7 @@
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { PolymarketMarket } from '../../services/polymarket.js';
 import { formatOutcomePrices } from '../../utils/market-utils.js';
+import { PredictionSchema } from './schemas.js';
 
 export interface PromptResult {
   systemPrompt: string;
@@ -37,9 +39,24 @@ Be objective, balanced, and transparent about uncertainty. Focus on verifiable i
 }
 
 /**
+ * Generate JSON schema example from Zod schema
+ */
+function generateSchemaExample(): string {
+  const jsonSchema = zodToJsonSchema(PredictionSchema, {
+    target: 'openApi3',
+    $refStrategy: 'none',
+  });
+
+  // Format the schema for better readability in the prompt
+  return JSON.stringify(jsonSchema, null, 2);
+}
+
+/**
  * Build the context prompt from market data and web research with enhanced formatting instructions
  */
 function buildContextPrompt(market: PolymarketMarket, researchContext: string): string {
+  const schemaExample = generateSchemaExample();
+
   const marketInfo = `
 # Market Information
 
@@ -66,33 +83,28 @@ ${researchContext}
 
 # Task
 
-Please analyze this market using ALL the information above (both market details and web research) and provide a structured prediction following this EXACT JSON format:
+Please analyze this market using ALL the information above (both market details and web research) and provide a structured prediction following this JSON schema:
 
-{
-  "marketId": "${market.id}",
-  "question": "${market.question}",
-  "prediction": {
-    "outcome": "YES" | "NO" | "UNCERTAIN",
-    "outcomeReasoning": "<Use clear structure with numbered points (1), (2), etc. Include paragraph breaks for readability. Cite specific research sources with context. Format as multiple paragraphs with clear enumeration.>",
-    "confidence": <number 0-100>,
-    "confidenceReasoning": "<Use clear structure with numbered points (1), (2), etc. Include paragraph breaks for readability. Reference data quality and source reliability with specific examples. Format as multiple paragraphs with clear enumeration.>",
-    "probability": <number 0-100>
-  },
-  "keyFactors": ["<factor 1>", "<factor 2>", ...],
-  "dataQuality": "HIGH" | "MEDIUM" | "LOW",
-  "lastUpdated": "<ISO 8601 timestamp>"
-}
+${schemaExample}
 
 IMPORTANT FORMATTING REQUIREMENTS:
-- Respond ONLY with valid JSON
+- Respond ONLY with valid JSON matching the schema above
 - Do not include markdown code blocks or any other text
+- The outcome field should be your prediction: YES, NO, or UNCERTAIN
 - The probability field should be your estimated probability of the YES outcome (0-100)
-- For outcomeReasoning and confidenceReasoning:
-  * Use numbered points format: (1), (2), (3) for clear enumeration
-  * Include paragraph breaks between major arguments
-  * Use bullet points for lists of factors or considerations
-  * Provide clear source citations with context
-  * Structure reasoning in logical flow that's easy to follow
+- The confidence field should reflect your confidence level in this prediction (0-100)
+
+REASONING FIELD FORMATTING:
+For outcomeReasoning and confidenceReasoning fields:
+- Use numbered points format: (1), (2), (3) for clear enumeration
+- Include paragraph breaks between major arguments for readability
+- Use bullet points for lists of factors or considerations
+- Provide clear source citations with context
+- Structure reasoning in logical flow that's easy to follow
+- Cite specific research sources with context
+- Reference data quality and source reliability with specific examples
+
+ADDITIONAL REQUIREMENTS:
 - Reference specific research sources in your reasoning
 - Consider the recency and reliability of sources when assessing data quality
 - Ensure all required fields are included`;
