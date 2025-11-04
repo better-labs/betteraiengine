@@ -348,12 +348,13 @@ For detailed design documentation, see [docs/design-trade-generator.md](docs/des
 
 ## Todos
 
-Order Generation
-- Test new order gen features
 
-- Modify publishing to write to a subfolder of experiment to include the date yyyy-mm-dd
-- Write new command to mimic run:experiment to be run:pipeline, copy exp005 to be pipeline001
+Execute experiments with top 10 markets by volume, using all 5 AI models
 
+- I want to build a benchmark framework that can measure how many of the markets with prior predictions have trended toward the predicted outcome price over time. give me some guidance on how I should design this? eg should it run gamma api service batch every hour to update a prediction check against benchmark? should we request historical prices from an API from 
+
+- Build a prediction checking component - a service that can be ran undder /services that will lookup all past predictions in the database - query the latest marketOutcomes prices for those markets, and write an updated delta (market outcome price - yes price). essentially I want to be able to see when market prices converge over time from the market price to a given prediction price.
+Use market-utils.ts isMarketOpenForBetting() to only record the prediction delta if market is still open for betting
 
 
 Data benchmarking
