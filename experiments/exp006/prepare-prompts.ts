@@ -25,8 +25,15 @@ Guidelines:
 - Provide separate, detailed reasoning for your confidence level with STRUCTURED FORMATTING
 - Estimate a probability (0-100) for the YES outcome
 - Identify key factors that influence the outcome
-- Assess the quality of available data (including web research)
+- Assess the quality of available data with a score (0-100, where 0 is low quality and 100 is high quality)
 - Reference specific sources from the research when relevant
+
+DATA QUALITY SCORING GUIDELINES:
+- 90-100: Primary sources, official data, real-time results, highly reliable outlets
+- 70-89: Credible secondary sources, recent polling, established forecasters, verified reports
+- 50-69: Mixed quality sources, some polling/forecasts, moderate verification
+- 30-49: Limited sources, older data, unverified claims, speculative information
+- 0-29: Poor quality sources, rumors, unreliable information, insufficient data
 
 FORMATTING REQUIREMENTS FOR REASONING SECTIONS:
 - Use numbered points format: (1), (2), (3) for clear enumeration
@@ -104,10 +111,16 @@ For outcomeReasoning and confidenceReasoning fields:
 - Cite specific research sources with context
 - Reference data quality and source reliability with specific examples
 
+DATA QUALITY ASSESSMENT:
+- Score data quality 0-100 based on source reliability, recency, and verification
+- Consider: Are sources primary or secondary? Are they verified? How recent?
+- Factor in: Number of sources, source diversity, data completeness
+- Reference specific source strengths and weaknesses in your reasoning
+
 ADDITIONAL REQUIREMENTS:
 - Reference specific research sources in your reasoning
-- Consider the recency and reliability of sources when assessing data quality
-- Ensure all required fields are included`;
+- Ensure all required fields are included
+- Provide JSON response only, no additional text`;
 
   return marketInfo;
 }

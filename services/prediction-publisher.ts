@@ -242,10 +242,14 @@ export async function publishPrediction(options: PredictionPublishOptions): Prom
     throw new Error('Either market or marketId must be provided');
   }
 
+  // Get current date in yyyy-mm-dd format
+  const now = new Date();
+  const dateFolder = now.toISOString().split('T')[0]; // yyyy-mm-dd
+
   const filename = `prediction-${predictionId}.md`;
   const repo = 'better-labs/prediction-history';
   const branch = 'main';
-  const filePath = `exp${experimentId}/${filename}`;
+  const filePath = `exp${experimentId}/${dateFolder}/${filename}`;
 
   const rawRequest = result?.data?.rawRequest;
   const rawResponse = result?.data?.rawResponse;

@@ -14,7 +14,7 @@ export const PredictionSchema = z.object({
   confidenceReasoning: z.string().min(10).describe('Detailed reasoning for the confidence level'),
   probability: z.number().min(0).max(100).describe('Estimated probability of YES outcome (0-100)'),
   keyFactors: z.array(z.string()).min(1).describe('Key factors influencing the prediction'),
-  dataQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).describe('Quality of available data for analysis'),
+  dataQuality: z.number().min(0).max(100).describe('Estimated data quality score (0-100, where 0 is low quality and 100 is high quality)'),
   lastUpdated: z.string().datetime().describe('ISO timestamp of prediction'),
 });
 
