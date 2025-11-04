@@ -48,6 +48,19 @@ export const experimentRegistry: ExperimentRegistry = {
     updatedAt: '2025-06-17',
     loader: () => import('./exp005/main.js'),
   },
+
+  '006': {
+    id: '006',
+    name: 'Experiment 006',
+    description: 'New experiment based on exp005 with enhanced formatting.',
+    version: '1.0.0',
+    author: 'BetterAI Team',
+    enabled: true,
+    tags: ['claude', 'sonnet-4.5', 'exa-ai', 'grok-ai', 'dual-source', 'web-research', 'enrichment', 'structured-output', 'zod', 'delta', 'enhanced-formatting'],
+    createdAt: '2025-11-04',
+    updatedAt: '2025-11-04',
+    loader: () => import('./exp006/main.js'),
+  },
 };
 
 /**
