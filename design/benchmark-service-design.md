@@ -1,8 +1,8 @@
 # Hourly Prediction Benchmark Service Design
 
-**Version:** 1.0.0
+**Version:** 2.0.0
 **Date:** 2025-11-10
-**Status:** Draft
+**Status:** Draft - Serverless Edition
 
 ---
 
@@ -11,15 +11,16 @@
 1. [Overview](#overview)
 2. [Requirements](#requirements)
 3. [Architecture](#architecture)
-4. [Benchmark Methodology](#benchmark-methodology)
-5. [Database Schema](#database-schema)
-6. [Service Components](#service-components)
-7. [Client/Server API Architecture](#clientserver-api-architecture)
-8. [Code Organization Options](#code-organization-options)
-9. [Batch Job Infrastructure](#batch-job-infrastructure)
-10. [Metrics & Reporting](#metrics--reporting)
-11. [Implementation Roadmap](#implementation-roadmap)
-12. [Future Enhancements](#future-enhancements)
+4. [Serverless Architecture with Vercel & Inngest](#serverless-architecture-with-vercel--inngest)
+5. [Benchmark Methodology](#benchmark-methodology)
+6. [Database Schema](#database-schema)
+7. [Service Components](#service-components)
+8. [Vercel Deployment Architecture](#vercel-deployment-architecture)
+9. [Inngest Batch Job Orchestration](#inngest-batch-job-orchestration)
+10. [Code Organization for Serverless](#code-organization-for-serverless)
+11. [Metrics & Reporting](#metrics--reporting)
+12. [Implementation Roadmap](#implementation-roadmap)
+13. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -60,51 +61,85 @@ The Hourly Prediction Benchmark Service is a batch processing system that contin
 
 ## Architecture
 
-### System Overview
+### Serverless System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Hourly Benchmark Service                     │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-        ┌─────────────────────────────────────────┐
-        │    Cron Scheduler (Hourly Trigger)      │
-        └─────────────────────────────────────────┘
-                              │
-                              ▼
-        ┌─────────────────────────────────────────┐
-        │      Batch Job Orchestrator             │
-        │  - Fetch active predictions             │
-        │  - Filter open markets                  │
-        │  - Batch price fetching                 │
-        │  - Calculate benchmarks                 │
-        │  - Store snapshots                      │
-        └─────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  Polymarket  │    │   Postgres   │    │  API Server  │
-│  Gamma API   │    │   Database   │    │  (Future)    │
-└──────────────┘    └──────────────┘    └──────────────┘
+                    ┌─────────────────────────────────┐
+                    │      Vercel Edge Network        │
+                    │  (Global CDN + Edge Functions)  │
+                    └─────────────────────────────────┘
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        │                          │                          │
+        ▼                          ▼                          ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   Next.js App    │    │  tRPC API Routes │    │  Inngest Events  │
+│  (SSR/RSC/ISR)   │    │  /api/trpc/*     │    │  /api/inngest    │
+└──────────────────┘    └──────────────────┘    └──────────────────┘
+                                   │                          │
+                                   ▼                          ▼
+                        ┌──────────────────┐    ┌──────────────────┐
+                        │   Core Services  │    │  Inngest Cloud   │
+                        │  (@core package) │    │  Orchestration   │
+                        └──────────────────┘    └──────────────────┘
+                                   │                          │
+        ┌──────────────────────────┼──────────────────────────┤
+        │                          │                          │
+        ▼                          ▼                          ▼
+┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+│  Vercel      │         │   Neon DB    │         │  Polymarket  │
+│  Postgres    │         │  (Postgres)  │         │  Gamma API   │
+│  or Neon     │         │  Serverless  │         │              │
+└──────────────┘         └──────────────┘         └──────────────┘
 ```
 
-### Component Interactions
+### Serverless Component Flow
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ predictions  │────▶│  benchmark   │────▶│  benchmark   │
-│    table     │     │   service    │     │  snapshots   │
-└──────────────┘     └──────────────┘     └──────────────┘
-                             │
-                             ▼
-                     ┌──────────────┐
-                     │  Polymarket  │
-                     │  API Client  │
-                     └──────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                    Hourly Benchmark Flow                        │
+└────────────────────────────────────────────────────────────────┘
+
+1. Inngest Cron Trigger (Every Hour)
+   │
+   ▼
+2. Inngest invokes: /api/inngest (Vercel Serverless Function)
+   │
+   ▼
+3. Inngest Function "benchmark.hourly" executes
+   │
+   ├─▶ Step 1: Fetch active predictions from DB
+   │   └─▶ Neon Postgres (serverless, auto-scales)
+   │
+   ├─▶ Step 2: Fan-out to parallel prediction workers
+   │   └─▶ Inngest sends events: "benchmark.process-prediction"
+   │
+   ├─▶ Step 3: Each worker processes one prediction
+   │   ├─▶ Fetch market price (Polymarket API)
+   │   ├─▶ Calculate metrics
+   │   └─▶ Save snapshot to DB
+   │
+   └─▶ Step 4: Aggregate results & update summary
+       └─▶ Update benchmark_summary table
 ```
+
+### Key Architectural Benefits
+
+**Serverless Advantages:**
+- ✅ **Zero Infrastructure Management**: No servers to provision or maintain
+- ✅ **Auto-Scaling**: Handles 10 or 10,000 predictions seamlessly
+- ✅ **Pay-per-Use**: Only pay for actual execution time
+- ✅ **Global Edge**: Low-latency API responses worldwide
+- ✅ **Built-in Reliability**: Automatic retries and error handling
+- ✅ **Instant Deploys**: Git push → Production in <1 minute
+
+**Inngest Advantages:**
+- ✅ **Durable Execution**: Functions resume after failures
+- ✅ **Visual Debugging**: See every step of every execution
+- ✅ **Automatic Retries**: Exponential backoff built-in
+- ✅ **Fan-out/Fan-in**: Process 1000s of predictions in parallel
+- ✅ **Rate Limiting**: Respect API limits automatically
+- ✅ **Scheduling**: Cron expressions for hourly jobs
 
 ---
 
@@ -492,6 +527,752 @@ class BenchmarkAnalytics {
   ): Promise<ConvergenceDistribution>
 }
 ```
+
+---
+
+## Serverless Architecture with Vercel & Inngest
+
+### Why Serverless for Benchmark Service?
+
+Traditional server-based architectures require:
+- 24/7 running servers (expensive)
+- Manual scaling configuration
+- Infrastructure maintenance
+- Complex deployment pipelines
+
+**Serverless architecture eliminates all of this:**
+
+| Aspect | Traditional | Serverless (Vercel + Inngest) |
+|--------|-------------|-------------------------------|
+| **Scaling** | Manual configuration | Automatic, infinite scale |
+| **Cost** | Fixed monthly ($50-500) | Pay-per-use (~$5-50) |
+| **Deployment** | 15-30 minutes | <60 seconds |
+| **Maintenance** | Regular updates, patches | Zero maintenance |
+| **Monitoring** | Self-hosted tools | Built-in dashboards |
+| **Cold Starts** | N/A | <300ms (acceptable for batch) |
+
+### Vercel: Hosting & API Layer
+
+**What Vercel Provides:**
+- Next.js hosting with zero configuration
+- Serverless Functions for API routes
+- Edge Network (global CDN)
+- Automatic HTTPS and SSL
+- Preview deployments for every PR
+- Built-in analytics and monitoring
+
+**Architecture Pattern:**
+```typescript
+// packages/web/app/api/trpc/[trpc]/route.ts
+import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
+import { appRouter } from '@betteraiengine/api';
+
+export const runtime = 'edge'; // Run on Vercel Edge Network
+
+const handler = (req: Request) => {
+  return fetchRequestHandler({
+    endpoint: '/api/trpc',
+    req,
+    router: appRouter,
+    createContext: () => ({}),
+  });
+};
+
+export { handler as GET, handler as POST };
+```
+
+**Database Strategy:**
+Use **Neon** or **Vercel Postgres** (both serverless):
+- Neon: Serverless Postgres with branching
+- Vercel Postgres: Native integration
+- Connection pooling built-in
+- Auto-pause when inactive (cost savings)
+
+```typescript
+// packages/core/db/index.ts
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+
+// Works in serverless environments
+export const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql);
+```
+
+### Inngest: Batch Job Orchestration
+
+**What Inngest Provides:**
+- Durable function execution
+- Built-in retry logic with exponential backoff
+- Visual debugging and execution logs
+- Cron scheduling
+- Fan-out/fan-in patterns
+- Rate limiting and throttling
+- No infrastructure setup
+
+**Key Features for Benchmark Service:**
+
+1. **Durable Execution**: If a step fails, Inngest retries automatically
+2. **Step Functions**: Break complex jobs into atomic steps
+3. **Parallel Processing**: Fan-out to 1000s of workers
+4. **Rate Limiting**: Respect Polymarket API limits
+5. **Observability**: See every execution in dashboard
+
+**Inngest Architecture:**
+
+```typescript
+// packages/web/inngest/functions/benchmark-hourly.ts
+import { inngest } from '../client';
+import { BenchmarkService } from '@betteraiengine/core';
+
+export const benchmarkHourly = inngest.createFunction(
+  {
+    id: 'benchmark-hourly',
+    name: 'Hourly Benchmark Job'
+  },
+  { cron: '0 * * * *' }, // Every hour at minute 0
+  async ({ event, step }) => {
+    // Step 1: Fetch active predictions (durable step)
+    const predictions = await step.run('fetch-predictions', async () => {
+      const service = new BenchmarkService();
+      return await service.getActivePredictions();
+    });
+
+    // Step 2: Fan-out to parallel workers
+    const events = predictions.map(prediction => ({
+      name: 'benchmark/process-prediction',
+      data: { predictionId: prediction.id }
+    }));
+
+    await step.sendEvent('fan-out-predictions', events);
+
+    // Step 3: Wait for all to complete and aggregate
+    const results = await step.waitForEvent('benchmark/predictions-complete', {
+      timeout: '5m',
+      match: 'data.batchId'
+    });
+
+    return {
+      processed: predictions.length,
+      successful: results.successful,
+      failed: results.failed
+    };
+  }
+);
+```
+
+**Individual Prediction Worker:**
+
+```typescript
+// packages/web/inngest/functions/benchmark-prediction.ts
+export const benchmarkPrediction = inngest.createFunction(
+  {
+    id: 'benchmark-prediction',
+    name: 'Process Single Prediction Benchmark',
+    concurrency: 50 // Process 50 predictions in parallel
+  },
+  { event: 'benchmark/process-prediction' },
+  async ({ event, step }) => {
+    const { predictionId } = event.data;
+
+    // Step 1: Fetch market price with retry
+    const marketPrice = await step.run('fetch-market-price', async () => {
+      const fetcher = new MarketDataFetcher();
+      return await fetcher.fetchCurrentMarketPrice(event.data.marketId);
+    });
+
+    // Step 2: Calculate metrics
+    const metrics = await step.run('calculate-metrics', async () => {
+      const service = new BenchmarkService();
+      return await service.calculateBenchmarkMetrics(
+        event.data.prediction,
+        marketPrice
+      );
+    });
+
+    // Step 3: Save to database
+    await step.run('save-snapshot', async () => {
+      const service = new BenchmarkService();
+      await service.saveBenchmarkSnapshot(metrics);
+      await service.updateBenchmarkSummary(predictionId, metrics);
+    });
+
+    return { predictionId, success: true };
+  }
+);
+```
+
+**Error Handling & Retries:**
+
+```typescript
+export const benchmarkPrediction = inngest.createFunction(
+  {
+    id: 'benchmark-prediction',
+    retries: 3, // Retry failed executions
+    rateLimit: {
+      limit: 100,
+      period: '1m' // Max 100 requests per minute
+    }
+  },
+  { event: 'benchmark/process-prediction' },
+  async ({ event, step, logger }) => {
+    try {
+      // Processing logic...
+    } catch (error) {
+      logger.error('Prediction benchmark failed', {
+        predictionId: event.data.predictionId,
+        error
+      });
+
+      // Inngest will automatically retry with exponential backoff
+      throw error;
+    }
+  }
+);
+```
+
+### Inngest Dashboard
+
+Inngest provides a powerful dashboard to monitor all executions:
+
+```
+https://app.inngest.com/env/production/functions
+
+┌─────────────────────────────────────────────────────────┐
+│  Functions                                               │
+├─────────────────────────────────────────────────────────┤
+│  benchmark-hourly                                        │
+│  ✓ Last run: 2 minutes ago                              │
+│  ✓ Success rate: 98.5%                                   │
+│  ⏱ Avg duration: 45s                                     │
+│  📊 Processed: 156 predictions                           │
+│                                                          │
+│  Recent Runs:                                            │
+│  [✓] 14:00 - 156 predictions (45s)                      │
+│  [✓] 13:00 - 152 predictions (42s)                      │
+│  [✓] 12:00 - 148 predictions (38s)                      │
+└─────────────────────────────────────────────────────────┘
+
+Click any run to see:
+- Step-by-step execution timeline
+- Input/output for each step
+- Error messages and stack traces
+- Retry attempts
+- Performance metrics
+```
+
+---
+
+## Vercel Deployment Architecture
+
+### Project Structure for Vercel
+
+```
+betteraiengine/
+├── packages/
+│   ├── core/                    # Shared services (imported by all)
+│   │   ├── services/
+│   │   ├── db/
+│   │   └── package.json
+│   │
+│   └── web/                     # Next.js app (deployed to Vercel)
+│       ├── app/
+│       │   ├── api/
+│       │   │   ├── trpc/        # tRPC endpoints
+│       │   │   │   └── [trpc]/route.ts
+│       │   │   └── inngest/     # Inngest webhook
+│       │   │       └── route.ts
+│       │   ├── benchmarks/      # Web pages
+│       │   └── predictions/
+│       ├── inngest/             # Inngest functions
+│       │   ├── client.ts
+│       │   └── functions/
+│       │       ├── benchmark-hourly.ts
+│       │       └── benchmark-prediction.ts
+│       ├── vercel.json          # Vercel config
+│       └── package.json
+│
+├── pnpm-workspace.yaml
+└── package.json
+```
+
+### Vercel Configuration
+
+**vercel.json:**
+```json
+{
+  "buildCommand": "pnpm build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 300
+    }
+  },
+  "env": {
+    "DATABASE_URL": "@database-url",
+    "INNGEST_EVENT_KEY": "@inngest-event-key",
+    "INNGEST_SIGNING_KEY": "@inngest-signing-key"
+  }
+}
+```
+
+### Environment Variables
+
+**Required Environment Variables:**
+```bash
+# Database (Neon or Vercel Postgres)
+DATABASE_URL="postgresql://..."
+
+# Inngest
+INNGEST_EVENT_KEY="..."
+INNGEST_SIGNING_KEY="..."
+
+# Polymarket API (if needed)
+POLYMARKET_API_KEY="..."
+
+# OpenRouter / OpenAI (for predictions)
+OPENROUTER_API_KEY="..."
+```
+
+**Setting up in Vercel:**
+```bash
+# Install Vercel CLI
+pnpm add -g vercel
+
+# Link project
+vercel link
+
+# Add environment variables
+vercel env add DATABASE_URL production
+vercel env add INNGEST_EVENT_KEY production
+vercel env add INNGEST_SIGNING_KEY production
+
+# Deploy
+vercel --prod
+```
+
+### Database Setup (Neon)
+
+**Why Neon:**
+- Serverless Postgres (no connection management)
+- Branching (preview environments get their own DB)
+- Auto-pause when inactive (cost savings)
+- Native Vercel integration
+- Fast cold starts (<100ms)
+
+**Setup:**
+```bash
+# 1. Create Neon project at https://neon.tech
+# 2. Get connection string
+# 3. Add to Vercel
+
+# Run migrations
+pnpm drizzle-kit push:pg
+```
+
+**Connection Pooling:**
+```typescript
+// packages/core/db/index.ts
+import { neon, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+
+// Enable connection pooling
+neonConfig.fetchConnectionCache = true;
+
+export const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql);
+```
+
+---
+
+## Inngest Batch Job Orchestration
+
+### Complete Inngest Setup
+
+**1. Install Inngest:**
+```bash
+cd packages/web
+pnpm add inngest
+```
+
+**2. Create Inngest Client:**
+```typescript
+// packages/web/inngest/client.ts
+import { Inngest } from 'inngest';
+
+export const inngest = new Inngest({
+  id: 'betteraiengine',
+  name: 'BetterAI Engine'
+});
+```
+
+**3. Create Inngest API Route:**
+```typescript
+// packages/web/app/api/inngest/route.ts
+import { serve } from 'inngest/next';
+import { inngest } from '../../../inngest/client';
+import { benchmarkHourly } from '../../../inngest/functions/benchmark-hourly';
+import { benchmarkPrediction } from '../../../inngest/functions/benchmark-prediction';
+
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [
+    benchmarkHourly,
+    benchmarkPrediction,
+  ],
+});
+```
+
+### Inngest Function Examples
+
+**Hourly Benchmark (Main Orchestrator):**
+
+```typescript
+// packages/web/inngest/functions/benchmark-hourly.ts
+import { inngest } from '../client';
+import { db, predictions, benchmarkSummary } from '@betteraiengine/core/db';
+import { eq } from 'drizzle-orm';
+
+export const benchmarkHourly = inngest.createFunction(
+  {
+    id: 'benchmark-hourly',
+    name: 'Hourly Benchmark Orchestrator',
+    retries: 2
+  },
+  { cron: '0 * * * *' }, // Every hour
+  async ({ event, step, logger }) => {
+    const startTime = Date.now();
+
+    // Step 1: Fetch active predictions
+    const activePredictions = await step.run('fetch-active-predictions', async () => {
+      logger.info('Fetching active predictions');
+
+      return await db
+        .select({
+          prediction: predictions,
+          summary: benchmarkSummary
+        })
+        .from(predictions)
+        .leftJoin(benchmarkSummary, eq(predictions.id, benchmarkSummary.predictionId))
+        .where(eq(benchmarkSummary.benchmarkStatus, 'ACTIVE'));
+    });
+
+    logger.info(`Found ${activePredictions.length} active predictions to benchmark`);
+
+    // Step 2: Fan-out to process each prediction
+    const batchId = `batch-${Date.now()}`;
+
+    await step.run('fan-out-predictions', async () => {
+      const events = activePredictions.map(({ prediction, summary }) => ({
+        name: 'benchmark/process-prediction' as const,
+        data: {
+          batchId,
+          predictionId: prediction.id,
+          marketId: prediction.marketId,
+          prediction: prediction.prediction,
+          summary
+        }
+      }));
+
+      // Send all events in parallel
+      await inngest.send(events);
+
+      return events.length;
+    });
+
+    // Step 3: Wait for completion signal (optional)
+    // You could implement a completion tracker here
+
+    const duration = Date.now() - startTime;
+    logger.info(`Benchmark orchestration completed in ${duration}ms`);
+
+    return {
+      batchId,
+      totalPredictions: activePredictions.length,
+      durationMs: duration,
+      timestamp: new Date().toISOString()
+    };
+  }
+);
+```
+
+**Individual Prediction Processor:**
+
+```typescript
+// packages/web/inngest/functions/benchmark-prediction.ts
+import { inngest } from '../client';
+import {
+  db,
+  benchmarkSnapshots,
+  benchmarkSummary
+} from '@betteraiengine/core/db';
+import { fetchMarketById } from '@betteraiengine/core/services/polymarket';
+import { getYesOutcomePrice } from '@betteraiengine/core/utils/market-utils';
+
+export const benchmarkPrediction = inngest.createFunction(
+  {
+    id: 'benchmark-prediction',
+    name: 'Process Single Prediction',
+    concurrency: {
+      limit: 50, // Process 50 at a time
+      key: 'event.data.batchId' // Per batch
+    },
+    retries: 3,
+    rateLimit: {
+      limit: 100,
+      period: '1m',
+      key: 'event.data.marketId' // Per market
+    }
+  },
+  { event: 'benchmark/process-prediction' },
+  async ({ event, step, logger }) => {
+    const { predictionId, marketId, prediction, summary } = event.data;
+
+    logger.info('Processing prediction', { predictionId, marketId });
+
+    // Step 1: Fetch current market data
+    const market = await step.run('fetch-market-data', async () => {
+      try {
+        return await fetchMarketById(marketId);
+      } catch (error) {
+        logger.error('Failed to fetch market', { marketId, error });
+        throw error;
+      }
+    });
+
+    // Step 2: Parse market prices
+    const prices = await step.run('parse-market-prices', async () => {
+      const yesPrice = getYesOutcomePrice(market.outcomePrices);
+
+      if (!yesPrice.success) {
+        throw new Error(`Failed to parse prices: ${yesPrice.error}`);
+      }
+
+      return {
+        yesPrice: yesPrice.value,
+        noPrice: 1 - yesPrice.value
+      };
+    });
+
+    // Step 3: Calculate benchmark metrics
+    const metrics = await step.run('calculate-metrics', async () => {
+      const predictedProb = prediction.probability / 100; // Convert to 0-1
+      const absDelta = Math.abs(prices.yesPrice - predictedProb);
+
+      // Get previous snapshot for convergence rate
+      const previousSnapshot = await db
+        .select()
+        .from(benchmarkSnapshots)
+        .where(eq(benchmarkSnapshots.predictionId, predictionId))
+        .orderBy(benchmarkSnapshots.snapshotAt, 'desc')
+        .limit(1);
+
+      let convergenceRate = 0;
+      let movementDirection = 'STABLE';
+
+      if (previousSnapshot.length > 0) {
+        const prev = previousSnapshot[0];
+        const deltaChange = prev.absDelta - absDelta;
+        const hoursElapsed = 1; // Assuming hourly runs
+
+        convergenceRate = deltaChange / hoursElapsed;
+
+        if (Math.abs(deltaChange) < 0.005) {
+          movementDirection = 'STABLE';
+        } else if (deltaChange > 0) {
+          movementDirection = 'CONVERGING';
+        } else {
+          movementDirection = 'DIVERGING';
+        }
+      }
+
+      return {
+        absDelta,
+        convergenceRate,
+        movementDirection,
+        marketPriceYes: prices.yesPrice,
+        marketPriceNo: prices.noPrice,
+        marketClosed: market.closed || false
+      };
+    });
+
+    // Step 4: Save snapshot to database
+    await step.run('save-snapshot', async () => {
+      const hoursSincePrediction = Math.floor(
+        (Date.now() - new Date(prediction.createdAt).getTime()) / (1000 * 60 * 60)
+      );
+
+      await db.insert(benchmarkSnapshots).values({
+        predictionId,
+        marketId,
+        snapshotAt: new Date(),
+        marketPriceYes: metrics.marketPriceYes,
+        marketPriceNo: metrics.marketPriceNo,
+        marketClosed: metrics.marketClosed,
+        marketResolved: false,
+        predictedProbability: prediction.probability / 100,
+        predictedConfidence: prediction.confidence,
+        absDelta: metrics.absDelta,
+        movementDirection: metrics.movementDirection,
+        convergenceRate: metrics.convergenceRate,
+        cumulativeConvergence: summary.initialDelta - metrics.absDelta,
+        hoursSincePrediction
+      });
+    });
+
+    // Step 5: Update benchmark summary
+    await step.run('update-summary', async () => {
+      await db
+        .update(benchmarkSummary)
+        .set({
+          latestMarketPrice: metrics.marketPriceYes,
+          latestDelta: metrics.absDelta,
+          marketClosed: metrics.marketClosed,
+          totalSnapshots: summary.totalSnapshots + 1,
+          hoursTracked: summary.hoursTracked + 1,
+          convergingSnapshots:
+            metrics.movementDirection === 'CONVERGING'
+              ? summary.convergingSnapshots + 1
+              : summary.convergingSnapshots,
+          divergingSnapshots:
+            metrics.movementDirection === 'DIVERGING'
+              ? summary.divergingSnapshots + 1
+              : summary.divergingSnapshots,
+          stableSnapshots:
+            metrics.movementDirection === 'STABLE'
+              ? summary.stableSnapshots + 1
+              : summary.stableSnapshots,
+          lastBenchmarkedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(benchmarkSummary.predictionId, predictionId));
+    });
+
+    logger.info('Prediction benchmark complete', {
+      predictionId,
+      direction: metrics.movementDirection,
+      delta: metrics.absDelta
+    });
+
+    return {
+      predictionId,
+      success: true,
+      metrics
+    };
+  }
+);
+```
+
+### Manual Trigger Function
+
+```typescript
+// packages/web/inngest/functions/benchmark-manual.ts
+export const benchmarkManual = inngest.createFunction(
+  { id: 'benchmark-manual' },
+  { event: 'benchmark/trigger-manual' },
+  async ({ event, step }) => {
+    const { predictionIds } = event.data;
+
+    // Fan-out to process specific predictions
+    const events = predictionIds.map(id => ({
+      name: 'benchmark/process-prediction',
+      data: {
+        batchId: `manual-${Date.now()}`,
+        predictionId: id
+      }
+    }));
+
+    await step.sendEvent('trigger-manual-benchmarks', events);
+
+    return { triggered: predictionIds.length };
+  }
+);
+```
+
+**CLI to trigger manual benchmark:**
+```bash
+# CLI command triggers this
+pnpm dev run:benchmark --prediction-id abc-123
+```
+
+```typescript
+// cli.ts
+import { inngest } from './packages/web/inngest/client';
+
+await inngest.send({
+  name: 'benchmark/trigger-manual',
+  data: { predictionIds: [predictionId] }
+});
+```
+
+---
+
+## Code Organization for Serverless
+
+### Recommended Structure: Monorepo with Vercel
+
+```
+betteraiengine/
+├── package.json
+├── pnpm-workspace.yaml
+├── turbo.json                   # Turborepo config (optional)
+│
+├── packages/
+│   ├── core/                    # @betteraiengine/core
+│   │   ├── package.json
+│   │   ├── services/
+│   │   │   ├── benchmark-service.ts
+│   │   │   ├── prediction-service.ts
+│   │   │   ├── polymarket.ts
+│   │   │   └── market-data-fetcher.ts
+│   │   ├── db/
+│   │   │   ├── schema.ts
+│   │   │   └── index.ts
+│   │   └── utils/
+│   │       └── market-utils.ts
+│   │
+│   ├── web/                     # Next.js app (Vercel deployment)
+│   │   ├── package.json
+│   │   ├── next.config.js
+│   │   ├── vercel.json
+│   │   ├── app/
+│   │   │   ├── api/
+│   │   │   │   ├── trpc/
+│   │   │   │   │   └── [trpc]/route.ts
+│   │   │   │   └── inngest/
+│   │   │   │       └── route.ts
+│   │   │   ├── benchmarks/
+│   │   │   │   └── [id]/page.tsx
+│   │   │   ├── predictions/
+│   │   │   └── layout.tsx
+│   │   ├── inngest/
+│   │   │   ├── client.ts
+│   │   │   └── functions/
+│   │   │       ├── benchmark-hourly.ts
+│   │   │       ├── benchmark-prediction.ts
+│   │   │       └── benchmark-manual.ts
+│   │   ├── lib/
+│   │   │   └── trpc.ts
+│   │   └── components/
+│   │
+│   └── cli/                     # CLI (optional - runs locally)
+│       ├── package.json
+│       ├── cli.ts
+│       └── commands/
+│
+├── drizzle/
+│   └── migrations/
+│
+└── docs/
+    └── design/
+```
+
+**Key Differences from Traditional Structure:**
+- No separate `/apps/workers` - Inngest functions live in `/packages/web/inngest`
+- No cron job container - Inngest handles scheduling
+- CLI can trigger Inngest functions via events
+- Everything deploys to Vercel as one Next.js app
 
 ---
 
@@ -991,74 +1772,93 @@ pnpm dev run:benchmark --dry-run
 
 ## Implementation Roadmap
 
-### Phase 1: Core Benchmark Service (Week 1-2)
+### Phase 1: Database & Core Services (Week 1)
 
 **Tasks:**
 - [ ] Create benchmark database schema and migrations
-- [ ] Implement `BenchmarkService` core logic
+- [ ] Set up Neon serverless Postgres
+- [ ] Implement `BenchmarkService` core logic in `/packages/core`
 - [ ] Implement `MarketDataFetcher` with batch support
-- [ ] Add CLI command: `run:benchmark`
+- [ ] Update Drizzle schema with new tables
 - [ ] Unit tests for benchmark calculations
 
 **Deliverables:**
 - Database tables: `benchmark_snapshots`, `benchmark_summary`
 - Services: `benchmark-service.ts`, `market-data-fetcher.ts`
-- CLI: `pnpm dev run:benchmark`
+- Neon database with migrations applied
 
-### Phase 2: Batch Job Infrastructure (Week 3)
+### Phase 2: Next.js + Vercel Setup (Week 2)
 
 **Tasks:**
-- [ ] Implement `BenchmarkBatchJob` orchestrator
-- [ ] Add hourly cron scheduler
-- [ ] Implement retry logic and error handling
-- [ ] Add structured logging
-- [ ] Integration tests
+- [ ] Create monorepo structure with `/packages/core` and `/packages/web`
+- [ ] Set up Next.js 14+ with App Router
+- [ ] Configure Vercel project and environment variables
+- [ ] Set up tRPC with basic benchmark endpoints
+- [ ] Deploy to Vercel (initial deployment)
 
 **Deliverables:**
-- Worker: `benchmark-worker.ts`
-- Hourly automation running in background
-- Error monitoring and alerts
+- Next.js app deployed to Vercel
+- tRPC API routes: `/api/trpc/benchmarks.*`
+- Vercel environment variables configured
 
-### Phase 3: Analytics & Reporting (Week 4)
+### Phase 3: Inngest Integration (Week 3)
+
+**Tasks:**
+- [ ] Install and configure Inngest SDK
+- [ ] Create Inngest API route: `/app/api/inngest/route.ts`
+- [ ] Implement hourly benchmark orchestrator function
+- [ ] Implement individual prediction processor function
+- [ ] Set up Inngest cron schedule
+- [ ] Test end-to-end batch processing
+
+**Deliverables:**
+- Inngest functions: `benchmark-hourly.ts`, `benchmark-prediction.ts`
+- Hourly automation via Inngest cron
+- Inngest dashboard showing successful runs
+
+### Phase 4: Analytics & CLI (Week 4)
 
 **Tasks:**
 - [ ] Implement `BenchmarkAnalytics` service
+- [ ] Add tRPC endpoints for analytics queries
+- [ ] Create CLI package to trigger manual benchmarks
 - [ ] Add experiment performance reports
-- [ ] Add CLI commands for analytics
 - [ ] Generate initial reports for existing predictions
 
 **Deliverables:**
 - Service: `benchmark-analytics.ts`
-- CLI: `pnpm dev benchmark:report --experiment-id 006`
-- Performance dashboards (CLI output)
+- CLI: `pnpm dev run:benchmark --prediction-id <id>`
+- tRPC analytics endpoints
 
-### Phase 4: API Foundation (Week 5-6)
-
-**Tasks:**
-- [ ] Set up Next.js monorepo structure
-- [ ] Implement tRPC routers for benchmarks
-- [ ] Create API endpoints for predictions
-- [ ] Add authentication/authorization
-- [ ] API documentation
-
-**Deliverables:**
-- Next.js app in `/packages/web`
-- tRPC API in `/packages/api`
-- API routes: `/api/trpc/benchmarks.*`
-
-### Phase 5: Web Dashboard MVP (Week 7-8)
+### Phase 5: Web Dashboard MVP (Week 5-6)
 
 **Tasks:**
-- [ ] Build prediction detail page
+- [ ] Build prediction detail page with time-series chart
 - [ ] Build experiment leaderboard
-- [ ] Add time-series charts (Recharts)
-- [ ] Add real-time updates (polling or SSE)
-- [ ] Deploy to production
+- [ ] Add real-time updates (React Query polling)
+- [ ] Add filtering and sorting
+- [ ] Performance optimization (ISR, caching)
 
 **Deliverables:**
-- Web dashboard at `betteraiengine.app`
+- Web dashboard at `betteraiengine.vercel.app`
 - Public prediction tracking
 - Experiment performance reports
+- Responsive mobile design
+
+### Phase 6: Monitoring & Optimization (Week 7)
+
+**Tasks:**
+- [ ] Set up Vercel Analytics
+- [ ] Configure Inngest alerts for failures
+- [ ] Add error tracking (Sentry)
+- [ ] Optimize database queries
+- [ ] Add database indexes for performance
+- [ ] Load testing
+
+**Deliverables:**
+- Monitoring dashboards
+- Performance metrics baseline
+- Optimization documentation
 
 ---
 
@@ -1201,17 +2001,56 @@ ORDER BY avg_convergence_pct DESC;
 
 The Hourly Prediction Benchmark Service provides a robust foundation for measuring AI prediction performance in real-time. By focusing on **directional movement** rather than final outcomes, we can rapidly iterate on prediction models and identify winning strategies.
 
-The proposed architecture balances immediate needs (batch processing, CLI access) with future growth (API, web dashboard) while maintaining clean separation of concerns through a monorepo structure.
+### Why Serverless Architecture Wins
 
-**Next Steps:**
-1. Review and approve this design
-2. Begin Phase 1 implementation (Core Benchmark Service)
-3. Set up database migrations
-4. Implement first hourly batch job
-5. Gather initial performance data
+The **Vercel + Inngest** serverless architecture provides massive advantages:
+
+| Benefit | Impact |
+|---------|--------|
+| **Zero Infrastructure** | No servers to manage, patch, or scale |
+| **Instant Deploys** | Git push → Production in <60 seconds |
+| **Auto-Scaling** | Handles 10 or 10,000 predictions seamlessly |
+| **Cost Efficiency** | Pay only for execution time (~$5-50/month vs $50-500) |
+| **Built-in Observability** | Inngest dashboard shows every execution |
+| **Developer Experience** | Focus on code, not DevOps |
+
+### Estimated Costs (Monthly)
+
+**Baseline Usage:**
+- 100 active predictions
+- Hourly benchmarking (720 runs/month)
+- ~5-10 web dashboard visitors/day
+
+| Service | Free Tier | Expected Cost |
+|---------|-----------|---------------|
+| **Vercel Hobby** | Unlimited bandwidth | $0 |
+| **Vercel Pro** (if needed) | More generous limits | $20/month |
+| **Neon Postgres** | 0.5GB storage, autosuspend | $0-10/month |
+| **Inngest** | 50k free steps/month | $0 (within free tier) |
+| **Total** | | **$0-30/month** |
+
+**At Scale (1000+ predictions):**
+- Inngest: ~$25-50/month
+- Neon: ~$20-40/month
+- Vercel Pro: $20/month
+- **Total: $65-110/month**
+
+Compare this to traditional infrastructure: $200-500/month for equivalent performance.
+
+### Next Steps
+
+1. **Review and approve this design**
+2. **Begin Phase 1**: Database schema and core services
+3. **Set up infrastructure**:
+   - Create Vercel project
+   - Set up Neon database
+   - Create Inngest account
+4. **Implement Phase 2-3**: Next.js + Inngest integration
+5. **Launch MVP**: Deploy hourly benchmarking to production
 
 ---
 
-**Document Status:** Ready for Review
+**Document Status:** Ready for Review (Serverless Edition)
 **Stakeholders:** Engineering Team, Product
-**Review Deadline:** 2025-11-15
+**Target Implementation:** 6-7 weeks
+**Estimated Monthly Cost:** $0-30 (MVP), $65-110 (at scale)
