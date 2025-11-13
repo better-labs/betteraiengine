@@ -6,8 +6,9 @@ import { dirname, join } from 'path';
 // Load .env.local before importing other modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// When running with tsx, __dirname is the project root
 // When running from dist/, go up one level to find .env.local in project root
-const envPath = join(__dirname, '..', '.env.local');
+const envPath = __dirname.endsWith('dist') ? join(__dirname, '..', '.env.local') : join(__dirname, '.env.local');
 const result = config({ path: envPath });
 
 if (result.error) {
