@@ -532,34 +532,9 @@ class BenchmarkAnalytics {
 
 ## Serverless Architecture with Vercel & Inngest
 
-### Why Serverless for Benchmark Service?
+### Technology Stack
 
-Traditional server-based architectures require:
-- 24/7 running servers (expensive)
-- Manual scaling configuration
-- Infrastructure maintenance
-- Complex deployment pipelines
-
-**Serverless architecture eliminates all of this:**
-
-| Aspect | Traditional | Serverless (Vercel + Inngest) |
-|--------|-------------|-------------------------------|
-| **Scaling** | Manual configuration | Automatic, infinite scale |
-| **Cost** | Fixed monthly ($50-500) | Pay-per-use (~$5-50) |
-| **Deployment** | 15-30 minutes | <60 seconds |
-| **Maintenance** | Regular updates, patches | Zero maintenance |
-| **Monitoring** | Self-hosted tools | Built-in dashboards |
-| **Cold Starts** | N/A | <300ms (acceptable for batch) |
-
-### Vercel: Hosting & API Layer
-
-**What Vercel Provides:**
-- Next.js hosting with zero configuration
-- Serverless Functions for API routes
-- Edge Network (global CDN)
-- Automatic HTTPS and SSL
-- Preview deployments for every PR
-- Built-in analytics and monitoring
+**Vercel**: Serverless hosting platform for Next.js with zero-config deployment, automatic scaling, and global CDN. Provides serverless functions for API routes with built-in monitoring.
 
 **Architecture Pattern:**
 ```typescript
@@ -581,43 +556,20 @@ const handler = (req: Request) => {
 export { handler as GET, handler as POST };
 ```
 
-**Database Strategy:**
-Use **Neon** or **Vercel Postgres** (both serverless):
-- Neon: Serverless Postgres with branching
-- Vercel Postgres: Native integration
-- Connection pooling built-in
-- Auto-pause when inactive (cost savings)
+**Database**: Neon serverless Postgres with automatic connection pooling, database branching for preview environments, and auto-pause when inactive.
 
 ```typescript
 // packages/core/db/index.ts
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 
-// Works in serverless environments
 export const sql = neon(process.env.DATABASE_URL!);
 export const db = drizzle(sql);
 ```
 
-### Inngest: Batch Job Orchestration
+**Inngest**: Durable workflow orchestration platform for batch jobs. Handles cron scheduling, automatic retries with exponential backoff, fan-out/fan-in parallel processing, and built-in rate limiting. Provides visual debugging dashboard for all executions.
 
-**What Inngest Provides:**
-- Durable function execution
-- Built-in retry logic with exponential backoff
-- Visual debugging and execution logs
-- Cron scheduling
-- Fan-out/fan-in patterns
-- Rate limiting and throttling
-- No infrastructure setup
-
-**Key Features for Benchmark Service:**
-
-1. **Durable Execution**: If a step fails, Inngest retries automatically
-2. **Step Functions**: Break complex jobs into atomic steps
-3. **Parallel Processing**: Fan-out to 1000s of workers
-4. **Rate Limiting**: Respect Polymarket API limits
-5. **Observability**: See every execution in dashboard
-
-**Inngest Architecture:**
+**Basic Inngest Pattern:**
 
 ```typescript
 // packages/web/inngest/functions/benchmark-hourly.ts
@@ -1366,66 +1318,11 @@ export const benchmarkRouter = router({
 });
 ```
 
-### Option B: Standalone Express API + Separate Next.js App
-
-**Architecture**: Microservices with separate API server
-
-```
-betteraiengine/                  # Core prediction engine
-├── services/
-├── db/
-├── experiments/
-└── batch-jobs/
-
-betteraiengine-api/              # Standalone API server
-├── src/
-│   ├── routes/
-│   │   ├── predictions.ts
-│   │   ├── benchmarks.ts
-│   │   └── markets.ts
-│   ├── middleware/
-│   └── server.ts
-└── package.json
-
-betteraiengine-web/              # Next.js web app
-├── app/
-├── components/
-└── package.json
-```
-
-**Benefits:**
-- Clear separation of concerns
-- Independent scaling (API vs Web)
-- Different deployment strategies
-- REST API can serve multiple clients
-
-**API Endpoints (REST):**
-
-```typescript
-// GET /api/v1/benchmarks/:predictionId
-// GET /api/v1/benchmarks/:predictionId/snapshots
-// GET /api/v1/benchmarks/experiments/:experimentId
-// GET /api/v1/benchmarks/leaderboard
-// GET /api/v1/predictions/:id
-// GET /api/v1/predictions
-// POST /api/v1/predictions/run
-```
-
-### Recommended Architecture: **Option A (Integrated Next.js)**
-
-**Rationale:**
-1. **Type Safety**: tRPC provides end-to-end type safety
-2. **Developer Experience**: Single codebase, shared types
-3. **Faster Iteration**: No API versioning overhead initially
-4. **Modern Stack**: App Router, Server Components, streaming
-5. **Deployment**: Simpler deployment story (Vercel)
-6. **Future-Proof**: Can extract standalone API later if needed
-
 ---
 
-## Code Organization Options
+## Code Organization
 
-### Option 1: Monorepo with `/packages` (Recommended)
+### Monorepo with `/packages`
 
 **Structure:**
 
@@ -1513,174 +1410,6 @@ betteraiengine/
     "@betteraiengine/api": "workspace:*"
   }
 }
-```
-
-### Option 2: Feature-Based `/modules` Structure
-
-**Structure:**
-
-```
-betteraiengine/
-├── package.json
-├── cli.ts
-│
-├── modules/
-│   ├── predictions/
-│   │   ├── services/
-│   │   │   ├── prediction.ts
-│   │   │   ├── prediction-storage.ts
-│   │   │   └── prediction-publisher.ts
-│   │   ├── schemas/
-│   │   ├── types.ts
-│   │   └── index.ts
-│   │
-│   ├── benchmarks/              # NEW: Benchmark module
-│   │   ├── services/
-│   │   │   ├── benchmark-service.ts
-│   │   │   ├── benchmark-batch-job.ts
-│   │   │   └── benchmark-analytics.ts
-│   │   ├── schemas/
-│   │   ├── types.ts
-│   │   └── index.ts
-│   │
-│   ├── markets/
-│   │   ├── services/
-│   │   │   ├── polymarket.ts
-│   │   │   ├── market-data-fetcher.ts
-│   │   │   └── polymarket-storage.ts
-│   │   ├── types.ts
-│   │   └── index.ts
-│   │
-│   ├── trades/
-│   │   ├── services/
-│   │   │   ├── trade-generator.ts
-│   │   │   └── trade-strategies.ts
-│   │   ├── types.ts
-│   │   └── index.ts
-│   │
-│   └── research/
-│       ├── services/
-│       │   ├── exa-research.ts
-│       │   └── grok-search.ts
-│       └── types.ts
-│
-├── experiments/                 # Moved to subfolder
-│   ├── archive/                 # Old experiments
-│   │   ├── exp001/
-│   │   └── exp005/
-│   ├── active/                  # Current experiments
-│   │   └── exp006/
-│   └── config.ts
-│
-├── api/                         # API server (future)
-│   ├── routes/
-│   ├── middleware/
-│   └── server.ts
-│
-├── web/                         # Next.js app (future)
-│   ├── app/
-│   └── components/
-│
-├── db/
-│   ├── schema.ts
-│   └── index.ts
-│
-├── config/
-├── utils/
-└── docs/
-```
-
-**Benefits:**
-- Feature-based organization
-- Related code grouped together
-- Simpler import paths
-- Good for medium-sized projects
-- Clear module boundaries
-
-### Recommendation: **Option 1 (Monorepo with `/packages`)**
-
-**Why:**
-1. **Scalability**: Easier to manage as project grows
-2. **Code Reuse**: Core package can be shared across API, CLI, Web
-3. **Team Collaboration**: Clear ownership boundaries
-4. **Future-Proof**: Easy to extract services or publish packages
-5. **Modern Best Practice**: Aligns with industry standards (Vercel, Turborepo)
-6. **Tooling**: Better support from build tools (Turborepo, nx)
-
----
-
-## Batch Job Infrastructure
-
-### Hourly Job Execution
-
-**Option 1: Node Cron (Simple)**
-
-```typescript
-// services/benchmark-worker.ts
-import cron from 'node-cron';
-import { BenchmarkBatchJob } from './benchmark-batch-job.js';
-
-// Run every hour at minute 0
-cron.schedule('0 * * * *', async () => {
-  logger.info('Starting hourly benchmark job');
-
-  const job = new BenchmarkBatchJob();
-  const result = await job.run();
-
-  logger.info({ result }, 'Hourly benchmark job completed');
-});
-```
-
-**Option 2: BullMQ (Production-Ready)**
-
-```typescript
-// services/benchmark-worker.ts
-import { Queue, Worker } from 'bullmq';
-import { BenchmarkBatchJob } from './benchmark-batch-job.js';
-
-const benchmarkQueue = new Queue('benchmark-jobs', {
-  connection: redis,
-});
-
-// Add hourly job
-await benchmarkQueue.add(
-  'hourly-benchmark',
-  {},
-  {
-    repeat: {
-      pattern: '0 * * * *', // Every hour
-    },
-  }
-);
-
-// Worker
-const worker = new Worker(
-  'benchmark-jobs',
-  async (job) => {
-    const benchmarkJob = new BenchmarkBatchJob();
-    return await benchmarkJob.run();
-  },
-  { connection: redis }
-);
-```
-
-**Recommendation: Start with node-cron, migrate to BullMQ for production**
-
-### CLI Command for Manual Execution
-
-```bash
-# Run benchmark manually
-pnpm dev run:benchmark
-
-# Run benchmark for specific prediction
-pnpm dev run:benchmark --prediction-id <uuid>
-
-# Run benchmark for specific experiment
-pnpm dev run:benchmark --experiment-id 006
-
-# Dry run (no database writes)
-pnpm dev run:benchmark --dry-run
-```
 
 ---
 
