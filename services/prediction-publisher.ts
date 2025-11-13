@@ -91,8 +91,9 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   const { predictionId, experimentId, experimentName, market, event, result } = options;
 
   // Extract prediction data
-  const predictionData = result.data?.prediction || {};
-  const predictionObj = predictionData.prediction || {};
+  const predictionObj = result.data?.prediction || {};
+  const keyFactors = predictionObj.keyFactors || [];
+  const dataQuality = predictionObj.dataQuality;
   const predictionDelta = result.data?.predictionDelta;
   const model = result.data?.model;
   const rawRequest = result.data?.rawRequest;
@@ -139,10 +140,10 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
   const eventName = event?.title || 'Unknown Event';
 
   const markdown = `
-  
-  # AI Prediction Delta: ${deltaFormatted}  
+
+  # AI Prediction Delta: ${deltaFormatted}
   ${eventImage ? `<img src="${eventImage}" alt="Event Icon" width="100">` : ''}
- - Event: [${eventName}](${eventUrl})  
+- Event: [${eventName}](${eventUrl})
 - Market: [${market?.question || 'Unknown Market'}](${polymarketUrl})  
 
 
@@ -154,7 +155,7 @@ function formatPredictionMarkdown(options: PredictionPublishOptions): string {
 - AI Prediction Delta: ${deltaFormatted}
 
 ### Key Factors
-${predictionData.keyFactors ? predictionData.keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
+${keyFactors.length > 0 ? keyFactors.map((f: string) => `- ${f}`).join('\n') : 'N/A'}
 
 ### Outcome Reasoning
 ${predictionObj.outcomeReasoning || predictionObj.reasoning || 'N/A'}
@@ -162,7 +163,7 @@ ${predictionObj.outcomeReasoning || predictionObj.reasoning || 'N/A'}
 ### Confidence Reasoning
 ${predictionObj.confidenceReasoning || 'N/A'}
 
-Data Quality: ${predictionData.dataQuality || 'N/A'}
+Data Quality: ${dataQuality !== undefined ? dataQuality : 'N/A'}
 
 
 ---
@@ -189,6 +190,20 @@ ${result.error ? `- Error: ${result.error}` : ''}
 
 ---
 
+## Full Prediction Data
+
+\`\`\`json
+${JSON.stringify(result.data, null, 2)}
+\`\`\`
+
+---
+
+# Research Data
+
+${researchContext ? researchContext : 'No research data available for this prediction.'}
+
+---
+
 ## Technical Metadata
 
 ### Token Usage
@@ -205,20 +220,6 @@ ${rawRequest ? JSON.stringify(rawRequest, null, 2) : 'N/A'}
 \`\`\`json
 ${rawResponse ? JSON.stringify(rawResponse, null, 2) : 'N/A'}
 \`\`\`
-
----
-
-## Full Prediction Data
-
-\`\`\`json
-${JSON.stringify(result.data, null, 2)}
-\`\`\`
-
----
-
-# Research Data
-
-${researchContext ? researchContext : 'No research data available for this prediction.'}
 
 ---
 
