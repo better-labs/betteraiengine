@@ -1628,6 +1628,86 @@ betteraiengine/
    - Rate limiting and API keys
    - Monetization potential
 
+9. **Experiments Framework Evolution**
+
+   **Recommendation**: Keep the current experiments framework and evolve it for serverless architecture. The benchmark service makes experiments measurable and valuable for continuous improvement.
+
+   **Evolution 1 - Move to Monorepo:**
+   ```
+   packages/
+   └── core/
+       └── experiments/          # Move experiments here
+           ├── config.ts
+           ├── types.ts
+           ├── base/             # Shared utilities
+           │   └── base-experiment.ts
+           ├── exp006/
+           └── exp007/
+   ```
+
+   **Evolution 2 - Make Experiments API-First:**
+   ```typescript
+   // Add tRPC endpoints for experiments
+   export const experimentRouter = router({
+     // List available experiments
+     list: publicProcedure.query(() => getAllExperimentMetadata()),
+
+     // Run experiment via API
+     run: publicProcedure
+       .input(z.object({
+         experimentId: z.string(),
+         marketSlug: z.string(),
+       }))
+       .mutation(async ({ input }) => {
+         const market = await fetchMarketBySlug(input.marketSlug);
+         return await runExperiment(input.experimentId, market);
+       }),
+
+     // Get experiment performance
+     getPerformance: publicProcedure
+       .input(z.object({ experimentId: z.string() }))
+       .query(({ input }) => getExperimentPerformance(input.experimentId)),
+   });
+   ```
+
+   **Evolution 3 - Smart Experiment Selection:**
+
+   Select best experiment per market category based on historical benchmark performance:
+   ```typescript
+   // Auto-select best performing experiment for each category
+   const selector = new ExperimentSelector();
+   const experimentId = await selector.selectExperiment(market);
+   // Returns: '007' for Sports, '006' for Politics, etc.
+   ```
+
+   **Future Vision (6 months):**
+   ```
+   📊 Experiment Performance Dashboard
+
+   Exp007 "Multi-Model Ensemble"
+   ├─ Sports: 78% accuracy ⭐ BEST
+   ├─ Politics: 71% accuracy
+   ├─ Crypto: 69% accuracy
+   └─ Overall: 73% accuracy
+
+   Exp006 "Parallel Research"
+   ├─ Sports: 72% accuracy
+   ├─ Politics: 75% accuracy ⭐ BEST
+   ├─ Crypto: 68% accuracy
+   └─ Overall: 72% accuracy
+
+   → Smart Router: Uses Exp007 for Sports, Exp006 for Politics
+   → A/B Testing: 80% production, 20% experimental
+   → Auto-deprecate underperformers after 100 predictions
+   ```
+
+   **Benefits:**
+   - Measure which experiments work best per category
+   - A/B test new approaches safely
+   - Continuously improve without breaking production
+   - Data-driven experiment promotion/deprecation
+   - Maintain agility while scaling
+
 ---
 
 ## Appendix
