@@ -77,7 +77,7 @@ The Hourly Prediction Benchmark Service continuously evaluates AI prediction per
         │                           │
         ▼                           ▼
   ┌──────────┐              ┌─────────────┐
-  │   Neon   │              │ Polymarket  │
+  │ Supabase │              │ Polymarket  │
   │ Postgres │              │ Gamma API   │
   └──────────┘              └─────────────┘
 ```
@@ -102,7 +102,7 @@ The Hourly Prediction Benchmark Service continuously evaluates AI prediction per
 4. Aggregate & Update summary table
 ```
 
-**Key Benefit**: Inngest orchestrates batch jobs → Calls serverless API functions on Vercel → Vercel functions handle individual tasks → Results stored in Neon DB
+**Key Benefit**: Inngest orchestrates batch jobs → Calls serverless API functions on Vercel → Vercel functions handle individual tasks → Results stored in Supabase DB
 
 ---
 
@@ -114,7 +114,7 @@ The Hourly Prediction Benchmark Service continuously evaluates AI prediction per
 
 **Inngest**: Batch job orchestration platform. Handles cron scheduling, automatic retries, fan-out/fan-in patterns, rate limiting. Visual debugging dashboard.
 
-**Neon**: Serverless Postgres with connection pooling, database branching, auto-pause when inactive.
+**Supabase**: Open-source Firebase alternative with Postgres database, connection pooling, real-time subscriptions, auto-generated REST APIs, built-in authentication.
 
 **tRPC**: Type-safe API layer. End-to-end TypeScript types from database to frontend.
 
@@ -252,12 +252,92 @@ CREATE INDEX idx_benchmark_summary_experiment_id ON benchmark_summary(experiment
 
 ## Implementation Roadmap
 
-### Phase 1: Database & Core Services (Week 1)
+### Phase 1A: Monorepo Restructuring (Week 1, Day 1-2)
+
+**Current State:**
+- Single-package CLI project with root-level `db/`, `services/`, `experiments/`, `cli.ts`
+- Drizzle ORM configured with existing schema ([db/schema.ts](../db/schema.ts))
+- Existing tables: `raw_events`, `raw_markets`, `events`, `markets`, `prediction_jobs`, `predictions`
+
+**Target State:**
+- Monorepo with `packages/core` (shared logic) and `packages/cli` (existing CLI)
+- Future-ready for `packages/web` (Next.js app in Phase 2)
+
+**Migration Steps:**
+
+1. **Create pnpm workspace configuration**
+   ```yaml
+   # pnpm-workspace.yaml
+   packages:
+     - 'packages/*'
+   ```
+
+2. **Restructure directories**
+   ```
+   Root:
+   ├── pnpm-workspace.yaml           # CREATE
+   ├── package.json                   # MODIFY: workspace root
+   ├── .env.example                   # KEEP
+   ├── .env.local                     # KEEP
+   └── packages/
+       ├── core/                      # CREATE (move shared code here)
+       │   ├── package.json
+       │   ├── tsconfig.json
+       │   ├── db/                    # MOVE from root
+       │   ├── services/              # MOVE from root
+       │   ├── experiments/           # MOVE from root
+       │   └── utils/                 # MOVE from root
+       └── cli/                       # CREATE (move CLI here)
+           ├── package.json
+           ├── tsconfig.json
+           ├── cli.ts                 # MOVE from root
+           └── commands/              # Future CLI commands
+   ```
+
+3. **Update package.json files**
+   - Root: Workspace scripts, no dependencies
+   - `packages/core/package.json`: Name `@betteraiengine/core`, export `db`, `services`, `experiments`
+   - `packages/cli/package.json`: Name `@betteraiengine/cli`, depend on `@betteraiengine/core`
+
+4. **Update imports**
+   - CLI: Change relative imports to `@betteraiengine/core`
+   - Core: Update internal imports to match new structure
+
+5. **Update drizzle.config.ts**
+   - Move to `packages/core/drizzle.config.ts`
+   - Update schema path to `./db/schema.ts`
+
+**Verification Steps:**
+```bash
+# Install dependencies
+pnpm install
+
+# Build core package
+pnpm --filter @betteraiengine/core build
+
+# Test CLI still works
+pnpm --filter @betteraiengine/cli dev
+
+# Verify database access
+pnpm --filter @betteraiengine/core db:push
+```
+
+**Success Criteria:**
+- [ ] Workspace structure created
+- [ ] Existing CLI functionality preserved
+- [ ] All imports resolved correctly
+- [ ] Database migrations still work
+- [ ] No breaking changes to existing experiments
+
+---
+
+### Phase 1B: Database & Core Services (Week 1, Day 3-5)
 
 **Prerequisites:**
-- [ ] Neon account created at https://neon.tech
-- [ ] DATABASE_URL available
-- [ ] pnpm workspace configured
+- [x] Phase 1A complete
+- [x] Supabase project created
+- [x] DATABASE_URL in .env.local
+- [x] pnpm workspace configured
 
 **File Structure Created:**
 ```
@@ -269,7 +349,7 @@ packages/core/
 │   ├── benchmark-service.ts      # CREATE
 │   └── market-data-fetcher.ts    # CREATE
 └── utils/
-    └── market-utils.ts            # MODIFY: Add helpers
+    └── market-utils.ts            # CREATE: Add helpers
 ```
 
 **Database Schema (schema.ts)**
@@ -347,22 +427,30 @@ class MarketDataFetcher {
 
 **Verification Steps:**
 ```bash
-# Run migrations
-pnpm drizzle-kit push:pg
+# Run migrations to create benchmark tables
+pnpm --filter @betteraiengine/core db:push
 
-# Verify tables created
+# Verify tables created in Supabase
 psql $DATABASE_URL -c "\dt benchmark_*"
 
-# Run unit tests
-pnpm test packages/core/services/*.test.ts
+# Functional test: Fetch market price
+pnpm --filter @betteraiengine/cli dev test:market-fetch --market-id <test-market-id>
+
+# Functional test: Create a benchmark snapshot
+pnpm --filter @betteraiengine/cli dev test:benchmark-snapshot --prediction-id <test-prediction-id>
+
+# Verify data in database
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM benchmark_snapshots;"
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM benchmark_summary;"
 ```
 
 **Success Criteria:**
-- [ ] benchmark_snapshots table created
-- [ ] benchmark_summary table created
+- [ ] `benchmark_snapshots` table created in Supabase
+- [ ] `benchmark_summary` table created in Supabase
 - [ ] BenchmarkService exports all methods
-- [ ] MarketDataFetcher can fetch prices
-- [ ] Unit tests pass
+- [ ] MarketDataFetcher can successfully fetch live Polymarket prices
+- [ ] Can create benchmark snapshot for existing prediction
+- [ ] Can update benchmark summary metrics
 
 **Exports for Next Phase:**
 ```typescript
@@ -1004,10 +1092,11 @@ This design provides a complete roadmap for implementing the Hourly Prediction B
 
 ### Next Steps
 
-1. **Begin Phase 1**: Database schema and core services
-2. **Set up infrastructure**: Neon, Vercel, Inngest accounts
-3. **Implement phases sequentially**: Each phase builds on previous
-4. **Launch MVP**: Deploy hourly benchmarking to production
+1. **Begin Phase 1A**: Monorepo restructuring (convert existing CLI project)
+2. **Begin Phase 1B**: Database schema and benchmark core services
+3. **Set up infrastructure**: Supabase (✓), Vercel, Inngest accounts
+4. **Implement phases sequentially**: Each phase builds on previous
+5. **Launch MVP**: Deploy hourly benchmarking to production
 
 ---
 

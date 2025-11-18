@@ -1,47 +1,25 @@
 {
-  "name": "betteraiengine",
+  "name": "betteraiengine-monorepo",
   "version": "1.0.0",
-  "description": "Headless backend service for generating AI-enhanced predictions on Polymarket markets",
-  "type": "module",
-  "main": "dist/index.js",
+  "description": "Monorepo for BetterAI Engine - AI-enhanced predictions for Polymarket",
+  "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "tsx cli.ts",
-    "build": "tsc",
-    "start": "node dist/cli.js",
-    "test": "vitest",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "dev": "pnpm --filter @betteraiengine/cli dev",
+    "build": "pnpm --filter @betteraiengine/core build && pnpm --filter @betteraiengine/cli build",
+    "build:core": "pnpm --filter @betteraiengine/core build",
+    "build:cli": "pnpm --filter @betteraiengine/cli build",
+    "db:generate": "pnpm --filter @betteraiengine/core db:generate",
+    "db:migrate": "pnpm --filter @betteraiengine/core db:migrate",
+    "db:push": "pnpm --filter @betteraiengine/core db:push",
+    "db:studio": "pnpm --filter @betteraiengine/core db:studio"
   },
   "keywords": [
     "polymarket",
     "ai",
-    "predictions"
+    "predictions",
+    "monorepo"
   ],
   "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@langchain/community": "latest",
-    "@langchain/core": "latest",
-    "@langchain/openai": "latest",
-    "commander": "^12.1.0",
-    "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.37.0",
-    "langchain": "latest",
-    "openai": "latest",
-    "pino": "^9.6.0",
-    "pino-pretty": "^13.0.0",
-    "postgres": "^3.4.5",
-    "zod": "^3.25.76",
-    "zod-to-json-schema": "^3.24.6"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.5",
-    "drizzle-kit": "latest",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
-    "vitest": "^3.2.4"
-  }
+  "license": "MIT"
 }

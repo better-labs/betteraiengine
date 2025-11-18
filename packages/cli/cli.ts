@@ -6,9 +6,11 @@ import { dirname, join } from 'path';
 // Load .env.local before importing other modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// When running with tsx, __dirname is the project root
-// When running from dist/, go up one level to find .env.local in project root
-const envPath = __dirname.endsWith('dist') ? join(__dirname, '..', '.env.local') : join(__dirname, '.env.local');
+// In monorepo: when running with tsx from packages/cli, go up to root
+// When running from dist/, go up two levels to find .env.local in workspace root
+const envPath = __dirname.endsWith('dist')
+  ? join(__dirname, '..', '..', '..', '.env.local')
+  : join(__dirname, '..', '..', '.env.local');
 const result = config({ path: envPath });
 
 if (result.error) {
@@ -18,11 +20,7 @@ if (result.error) {
 }
 
 import { Command } from 'commander';
-import { logger } from './utils/logger.js';
-import { runExperiment } from './services/experiment-runner.js';
-import { getAllExperimentMetadata } from './experiments/config.js';
-import { publishPrediction, checkGhCliAvailable, publishExistingPrediction } from './services/prediction-publisher.js';
-import { generateTrade } from './services/trade-generator.js';
+import { logger, runExperiment, getAllExperimentMetadata, publishPrediction, checkGhCliAvailable, publishExistingPrediction, generateTrade } from '@betteraiengine/core';
 
 const program = new Command();
 

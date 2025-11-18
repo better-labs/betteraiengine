@@ -1,0 +1,50 @@
+{
+  "name": "@betteraiengine/core",
+  "version": "1.0.0",
+  "description": "Core services and database logic for BetterAI Engine",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./db": "./dist/db/index.js",
+    "./services": "./dist/services/index.js",
+    "./experiments": "./dist/experiments/index.js",
+    "./utils": "./dist/utils/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": [
+    "polymarket",
+    "ai",
+    "predictions",
+    "core"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@langchain/community": "latest",
+    "@langchain/core": "latest",
+    "@langchain/openai": "latest",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.37.0",
+    "langchain": "latest",
+    "openai": "latest",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "postgres": "^3.4.5",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.24.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "drizzle-kit": "latest",
+    "typescript": "^5.7.3"
+  }
+}

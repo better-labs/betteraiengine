@@ -1,0 +1,33 @@
+{
+  "name": "@betteraiengine/cli",
+  "version": "1.0.0",
+  "description": "CLI tool for BetterAI Engine - AI-enhanced predictions for Polymarket",
+  "type": "module",
+  "main": "./dist/cli.js",
+  "bin": {
+    "betteraiengine": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [
+    "polymarket",
+    "ai",
+    "predictions",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@betteraiengine/core": "workspace:*",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
