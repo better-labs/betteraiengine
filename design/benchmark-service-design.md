@@ -77,7 +77,7 @@ The Hourly Prediction Benchmark Service continuously evaluates AI prediction per
         │                           │
         ▼                           ▼
   ┌──────────┐              ┌─────────────┐
-  │   Neon   │              │ Polymarket  │
+  │ Supabase │              │ Polymarket  │
   │ Postgres │              │ Gamma API   │
   └──────────┘              └─────────────┘
 ```
@@ -102,7 +102,7 @@ The Hourly Prediction Benchmark Service continuously evaluates AI prediction per
 4. Aggregate & Update summary table
 ```
 
-**Key Benefit**: Inngest orchestrates batch jobs → Calls serverless API functions on Vercel → Vercel functions handle individual tasks → Results stored in Neon DB
+**Key Benefit**: Inngest orchestrates batch jobs → Calls serverless API functions on Vercel → Vercel functions handle individual tasks → Results stored in Supabase Postgres
 
 ---
 
@@ -114,7 +114,7 @@ The Hourly Prediction Benchmark Service continuously evaluates AI prediction per
 
 **Inngest**: Batch job orchestration platform. Handles cron scheduling, automatic retries, fan-out/fan-in patterns, rate limiting. Visual debugging dashboard.
 
-**Neon**: Serverless Postgres with connection pooling, database branching, auto-pause when inactive.
+**Supabase**: Postgres platform with connection pooling, real-time subscriptions, auto-scaling, and built-in authentication.
 
 **tRPC**: Type-safe API layer. End-to-end TypeScript types from database to frontend.
 
@@ -255,8 +255,8 @@ CREATE INDEX idx_benchmark_summary_experiment_id ON benchmark_summary(experiment
 ### Phase 1: Database & Core Services (Week 1)
 
 **Prerequisites:**
-- [ ] Neon account created at https://neon.tech
-- [ ] DATABASE_URL available
+- [ ] Supabase project created at https://supabase.com
+- [ ] DATABASE_URL available (connection pooler URL)
 - [ ] pnpm workspace configured
 
 **File Structure Created:**
@@ -990,7 +990,7 @@ Exp006 "Parallel Research"
 
 ## Conclusion
 
-This design provides a complete roadmap for implementing the Hourly Prediction Benchmark Service using serverless architecture (Vercel + Inngest + Neon).
+This design provides a complete roadmap for implementing the Hourly Prediction Benchmark Service using serverless architecture (Vercel + Inngest + Supabase).
 
 ### Why Serverless Wins
 
